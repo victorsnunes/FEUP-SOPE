@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -18,6 +19,7 @@ int main(int argc, char *argv[]){
   bool first_agr = true;
 
   //flags
+  //TODO implement Verbose
   bool verbose = false;
   bool verboseC = false;
   bool recursive = false;
@@ -28,9 +30,12 @@ int main(int argc, char *argv[]){
   char* working_dir = getenv("PWD");
   char* log_dir = getenv("LOG_FILENAME");
   int return_code = 0;
+  int dir_i;
 
   struct dirent *entry;
   DIR *dir;
+
+  pid_t child;
 
   if(log_dir == NULL) logs = false;
 
@@ -40,6 +45,9 @@ int main(int argc, char *argv[]){
     printf("Failed to get working directory, exiting...\n");
     exit(-1);
   }
+
+  //random code so compiler stop complaining
+  if(verbose && verboseC) verbose = verboseC;
 
   //Parse the arguments lines
   for(int i = 1; i < argc; i++){
@@ -60,59 +68,77 @@ int main(int argc, char *argv[]){
     } else {
       if(first_agr) {
         mode = strtol(argv[i], NULL, 8);
-        printf("mode = %u\n", mode);
         first_agr = false;
       } else {
         file_path = argv[i];
+        dir_i = i;
       }
     }
   }
 
-
-  if(verbose) printf("Verbose mode activated!\n");
-  if(verboseC) printf("Verbose C mode activated!\n");
-  if(recursive) printf("Recursive mode activated!\n");
-
-
   concatenate(working_dir, file_path);
 
-  //Testing opendir
-  if((dir = opendir(working_dir)) == NULL) {
-      printf("opendir() error");
-  } else {
-    while((entry = readdir(dir)) != NULL){
-      if(entry->d_name[0] != '.')
-        printf("dir = %s\n", entry->d_name);
-    }
+  //TODO error handler for opendir
+  if(recursive){
+    if((dir = opendir(working_dir)) == NULL) {
+      printf("opendir() error\n");
+    } else {
+      while((entry = readdir(dir)) != NULL){
+        char *home_path_r = working_dir;
+        printf("pwd = %s\n", home_path_r);
 
+        if(entry->d_name[0] != '.'){
+          char* file_path_r = entry->d_name;
+          //concatenate(home_path_r, file_path_r);
+          printf("forking for dir = %s, with home = %s\n", file_path_r, home_path_r);
+          child = fork();
+          if(child == 0){
+            argv[dir_i] = file_path_r;
+            main(argc, argv);
+          }
+        }
+      }
+    }
   }
 
-  printf("file path = %s\n", working_dir);
-
+  printf("chmod on file: %s\n", working_dir);
   return_code = chmod(working_dir, mode);
-
   if(return_code != 0) error_handler();
+
+  //TODO error handler for child
+  if(child != 0){
+    pid_t r = wait(NULL);
+    printf("child with pid = %d has finished\n", r);
+  }
+
 
   return 0;
 }
 
-void concatenate(char a[], char b[]){
+//Concatenate in the format home/file and return it through file
+void concatenate(char home[], char file[]){
   int size_a = 0;
   int size_b = 0;
 
-  while(a[size_a] != '\0'){
+  char* tmp = home;
+
+  while(tmp[size_a] != '\0'){
     size_a++;
   }
 
-  a[size_a] = '/';
-  size_a++;
+  if(tmp[size_a - 1] != '/') {
+    tmp[size_a] = '/';
+    size_a++;
+  }
 
-  while(b[size_b] != '\0'){
-    a[size_a] = b[size_b];
+  while(file[size_b] != '\0'){
+    tmp[size_a] = file[size_b];
     size_a++;
     size_b++;
   }
-  a[size_a] = '\0';
+  tmp[size_a] = '\0';
+
+  file = tmp;
 
 }
 

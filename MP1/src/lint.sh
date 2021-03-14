@@ -11,4 +11,4 @@ echo -e "Files found to format = \n\"\"\"\n$FILE_LIST\n\"\"\""
 
 # Run for all the files
 
-cpplint --filter=-legal/copyright,-whitespace,-readability/casting,-readability/todo $FILE_LIST
+cpplint --filter=-legal/copyright,-whitespace,-readability/checking,-readability/todo --recursive $FILE_LIST

@@ -8,12 +8,19 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #define UNKNOWN_FLAG 21
+
+char* file_path;
+int nftot = 0;
+int nfmod = 0;
 
 void concatenate(char a[], char b[]);
 void error_handler();
 void error_unknow_flag(char flag);
+void signal_handler(int signo);
+bool prompt();
 
 int main(int argc, char *argv[]){
   bool first_agr = true;
@@ -26,7 +33,6 @@ int main(int argc, char *argv[]){
   bool logs = true;
 
   __mode_t mode;
-  char* file_path;
   char* working_dir = getenv("PWD");
   char* log_dir = getenv("LOG_FILENAME");
   int return_code = 0;
@@ -34,6 +40,9 @@ int main(int argc, char *argv[]){
 
   struct dirent *entry;
   DIR *dir;
+
+  struct sigaction new;
+  sigset_t smask;
 
   pid_t child;
 
@@ -46,9 +55,21 @@ int main(int argc, char *argv[]){
     exit(-1);
   }
 
+  if(sigemptyset(&smask) == -1)
+    perror("error on sigemptyset()");
+  new.sa_handler = signal_handler;
+  new.sa_mask = smask;
+  new.sa_flags = 0;
+
+  if(sigaction(SIGINT, &new, NULL) == -1)
+    perror("error on sigaction()");
+
+  nftot++; //Not sure where to put this
+
   //random code so compiler stop complaining
   if(verbose && verboseC) verbose = verboseC;
 
+  //TODO accept absolute paths
   //Parse the arguments lines
   for(int i = 1; i < argc; i++){
     if(argv[i][0] == '-'){
@@ -81,7 +102,7 @@ int main(int argc, char *argv[]){
   //TODO error handler for opendir
   if(recursive){
     if((dir = opendir(working_dir)) == NULL) {
-      printf("opendir() error\n");
+      error_handler();
     } else {
       while((entry = readdir(dir)) != NULL){
         char *home_path_r = working_dir;
@@ -96,13 +117,17 @@ int main(int argc, char *argv[]){
             argv[dir_i] = file_path_r;
             main(argc, argv);
           }
+           //else kill(child, SIGINT);
         }
       }
     }
   }
 
+  sleep(5);
+
   printf("chmod on file: %s\n", working_dir);
   return_code = chmod(working_dir, mode);
+  nfmod++;
   if(return_code != 0) error_handler();
 
   //TODO error handler for child
@@ -140,6 +165,23 @@ void concatenate(char home[], char file[]){
 
   file = tmp;
 
+}
+
+void signal_handler(int signo){
+  printf("Received Signal num: %d\n", signo);
+  printf("%d ; %s ; %d ; %d\n", getpid(), file_path, nftot, nfmod);
+  if(prompt()) return;
+  exit(-1);
+}
+
+bool prompt(){
+  char response[10];
+  while(1){
+    printf("Are you sure you want to cancel? (y/n)\n");
+    scanf("%s", response);
+    if(response[0] == 'y' || response[0] == 'Y') return true;
+    else if(response[0] == 'n' || response[0] == 'N') return false;
+  }
 }
 
 void error_unknow_flag(char flag){

@@ -1,13 +1,9 @@
-##
 # xmod
-#
-# @file
-# @version 0.1
 
 all: xmod
 
 xmod: xmod.c
-	cc -Wall xmod.c -o xmod
+	cc *.c -o xmod
 
 clean:
 	rm -f xmod

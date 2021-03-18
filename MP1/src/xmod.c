@@ -1,28 +1,4 @@
-#include <asm-generic/errno-base.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <signal.h>
-
-#define UNKNOWN_FLAG 21
-
-char* global_file_path;
-int nftot = 0;
-int nfmod = 0;
-
-
-void concatenate(char a[], char b[]);
-void error_handler();
-void error_unknow_flag(char flag);
-void signal_handler(int signo);
-void copy(char a[], char b[]);
-bool prompt();
+#include "xmod.h"
 
 int main(int argc, char *argv[]){
   bool first_agr = true;
@@ -116,6 +92,7 @@ int main(int argc, char *argv[]){
       //error_handler();
     } else {
       while((entry = readdir(dir)) != NULL){
+        //TODO sdould avoid calling the recursive for '.' and '..', but it should call for .smgh files
         if(entry->d_name[0] == '.') continue;
         char folder_r[256];
         copy(working_dir, folder_r);
@@ -135,9 +112,9 @@ int main(int argc, char *argv[]){
       closedir(dir);
     }
   }
-  //sleep(5);
-
   global_file_path = working_dir;
+
+  sleep(5);
   printf("chmod on file: %s\n", working_dir);
   return_code = chmod(working_dir, mode);
   nfmod++;
@@ -153,44 +130,10 @@ int main(int argc, char *argv[]){
   return 0;
 }
 
-//Concatenate in the format home/file and return it through file
-void concatenate(char home[], char file[]){
-  int size_a = 0;
-  int size_b = 0;
-
-  while(home[size_a] != '\0'){
-    size_a++;
-  }
-
-  if(home[size_a - 1] != '/') {
-    home[size_a] = '/';
-    size_a++;
-  }
-
-  while(file[size_b] != '\0'){
-    home[size_a] = file[size_b];
-    size_a++;
-    size_b++;
-  }
-  home[size_a] = '\0';
-}
-
-//Copy what is inside a to b
-void copy(char a[], char b[]){
-  int i = 0;
-  for(; a[i] != '\0'; i++){
-    b[i] = a[i];
-  }
-  b[i] = '\0';
-}
 
 void signal_handler(int signo){
-  printf("Received Signal num: %d\n", signo);
   printf("%d ; %s ; %d ; %d\n", getpid(), global_file_path, nftot, nfmod);
-  if(!prompt()){
-    printf("returning...");
-    return;
-  }
+  if(!prompt()) return;
   exit(-1);
 }
 

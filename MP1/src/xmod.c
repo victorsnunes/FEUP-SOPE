@@ -48,10 +48,6 @@ int main(int argc, char *argv[]){
 
   nftot++; //Not sure where to put this
 
-  //random code so compiler stop complaining
-  if(verbose && verboseC) verbose = verboseC;
-
-  //TODO accept absolute paths
   //Parse the arguments lines
   for(int i = 1; i < argc; i++){
     if(argv[i][0] == '-'){
@@ -83,8 +79,6 @@ int main(int argc, char *argv[]){
   if(!absolute_path)concatenate(working_dir, file_path);
   else copy(file_path, working_dir);
 
-  printf("working dir = %s\n", working_dir);
-
   //TODO error handler for opendir
   if(recursive){
     if((dir = opendir(working_dir)) == NULL) {
@@ -103,7 +97,7 @@ int main(int argc, char *argv[]){
           perror("Failed to fork()");
         if(child == 0){
           argv[dir_i] = folder_r;
-          printf("Calling main with argv = %s\n", argv[dir_i]);
+          if(verbose) printf("forking and calling main with argv = %s\n", argv[dir_i]);
           main(argc, argv);
           break;
         }
@@ -114,8 +108,9 @@ int main(int argc, char *argv[]){
   }
   global_file_path = working_dir;
 
-  sleep(5);
-  printf("chmod on file: %s\n", working_dir);
+  //sleep(5);
+
+  if(verbose || verboseC) printf("changing file '%s' to %o\n", working_dir, mode);
   return_code = chmod(working_dir, mode);
   nfmod++;
   if(return_code != 0) error_handler();
@@ -123,7 +118,7 @@ int main(int argc, char *argv[]){
   //TODO error handler for child
   if(child != 0){
     pid_t r = wait(NULL);
-    printf("child with pid = %d has finished\n", r);
+    if(verbose) printf("child with pid = %d has finished\n", r);
   }
 
 

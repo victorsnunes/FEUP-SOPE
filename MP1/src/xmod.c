@@ -12,14 +12,16 @@
 
 #define UNKNOWN_FLAG 21
 
-char* file_path;
+char* global_file_path;
 int nftot = 0;
 int nfmod = 0;
+
 
 void concatenate(char a[], char b[]);
 void error_handler();
 void error_unknow_flag(char flag);
 void signal_handler(int signo);
+void copy(char a[], char b[]);
 bool prompt();
 
 int main(int argc, char *argv[]){
@@ -31,9 +33,12 @@ int main(int argc, char *argv[]){
   bool verboseC = false;
   bool recursive = false;
   bool logs = true;
+  bool absolute_path = false;
 
   __mode_t mode;
-  char* working_dir = getenv("PWD");
+  char file_path[256];
+  char working_dir[256];
+  copy(getenv("PWD"), working_dir);
   char* log_dir = getenv("LOG_FILENAME");
   int return_code = 0;
   int dir_i;
@@ -50,6 +55,7 @@ int main(int argc, char *argv[]){
 
   if(logs) printf("Logs activated!\n");
 
+  //FIXME check if getenv is working
   if(working_dir == NULL){
     printf("Failed to get working directory, exiting...\n");
     exit(-1);
@@ -91,40 +97,47 @@ int main(int argc, char *argv[]){
         mode = strtol(argv[i], NULL, 8);
         first_agr = false;
       } else {
-        file_path = argv[i];
+        if(argv[i][0] == '/') absolute_path = true;
+        copy(argv[i], file_path);
         dir_i = i;
       }
     }
   }
 
-  concatenate(working_dir, file_path);
+  if(!absolute_path)concatenate(working_dir, file_path);
+  else copy(file_path, working_dir);
+
+  printf("working dir = %s\n", working_dir);
 
   //TODO error handler for opendir
   if(recursive){
     if((dir = opendir(working_dir)) == NULL) {
-      error_handler();
+      perror("Failed to open dir...");
+      //error_handler();
     } else {
       while((entry = readdir(dir)) != NULL){
-        char *home_path_r = working_dir;
-        printf("pwd = %s\n", home_path_r);
+        if(entry->d_name[0] == '.') continue;
+        char folder_r[256];
+        copy(working_dir, folder_r);
+        concatenate(folder_r, entry->d_name);
 
-        if(entry->d_name[0] != '.'){
-          char* file_path_r = entry->d_name;
-          //concatenate(home_path_r, file_path_r);
-          printf("forking for dir = %s, with home = %s\n", file_path_r, home_path_r);
-          child = fork();
-          if(child == 0){
-            argv[dir_i] = file_path_r;
-            main(argc, argv);
-          }
-           //else kill(child, SIGINT);
+
+        if( (child = fork()) == -1)
+          perror("Failed to fork()");
+        if(child == 0){
+          argv[dir_i] = folder_r;
+          printf("Calling main with argv = %s\n", argv[dir_i]);
+          main(argc, argv);
+          break;
         }
+
       }
+      closedir(dir);
     }
   }
+  //sleep(5);
 
-  sleep(5);
-
+  global_file_path = working_dir;
   printf("chmod on file: %s\n", working_dir);
   return_code = chmod(working_dir, mode);
   nfmod++;
@@ -145,40 +158,49 @@ void concatenate(char home[], char file[]){
   int size_a = 0;
   int size_b = 0;
 
-  char* tmp = home;
-
-  while(tmp[size_a] != '\0'){
+  while(home[size_a] != '\0'){
     size_a++;
   }
 
-  if(tmp[size_a - 1] != '/') {
-    tmp[size_a] = '/';
+  if(home[size_a - 1] != '/') {
+    home[size_a] = '/';
     size_a++;
   }
 
   while(file[size_b] != '\0'){
-    tmp[size_a] = file[size_b];
+    home[size_a] = file[size_b];
     size_a++;
     size_b++;
   }
-  tmp[size_a] = '\0';
+  home[size_a] = '\0';
+}
 
-  file = tmp;
-
+//Copy what is inside a to b
+void copy(char a[], char b[]){
+  int i = 0;
+  for(; a[i] != '\0'; i++){
+    b[i] = a[i];
+  }
+  b[i] = '\0';
 }
 
 void signal_handler(int signo){
   printf("Received Signal num: %d\n", signo);
-  printf("%d ; %s ; %d ; %d\n", getpid(), file_path, nftot, nfmod);
-  if(prompt()) return;
+  printf("%d ; %s ; %d ; %d\n", getpid(), global_file_path, nftot, nfmod);
+  if(!prompt()){
+    printf("returning...");
+    return;
+  }
   exit(-1);
 }
 
 bool prompt(){
   char response[10];
   while(1){
+    setbuf(stdout, NULL);
     printf("Are you sure you want to cancel? (y/n)\n");
     scanf("%s", response);
+    printf("response %c\n", response[0]);
     if(response[0] == 'y' || response[0] == 'Y') return true;
     else if(response[0] == 'n' || response[0] == 'N') return false;
   }

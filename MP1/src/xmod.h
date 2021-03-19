@@ -13,8 +13,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "util.h"
+#include "permissions.h"
 
 char *global_file_path;
 int nftot = 0;

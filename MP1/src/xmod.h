@@ -15,7 +15,7 @@
 
 #include "util.h"
 
-char* global_file_path;
+char *global_file_path;
 int nftot = 0;
 int nfmod = 0;
 
@@ -23,6 +23,6 @@ void error_handler();
 void error_unknow_flag(char flag);
 void signal_handler(int signo);
 bool prompt();
-
+void write_log(char *event, char *info);
 
 #endif // __XMOD_H_

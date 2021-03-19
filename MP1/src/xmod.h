@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -25,6 +26,7 @@ bool father = true;
 char *log_dir;
 pid_t child;
 bool logs = true;
+clock_t start_t;
 
 void error_handler();
 void signal_handler();

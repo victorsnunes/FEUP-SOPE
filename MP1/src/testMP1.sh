@@ -8,6 +8,10 @@
 LOGDIR="/tmp"
 PROGCH="chmod"
 
+PATH="$PATH:$PWD"
+
+set -m
+
 case $# in
 	0 | 1 | 2) echo; echo "Usage: $0 <xmod_executable | xxx> <dir2test> <file2test_in_dir2test>" ; echo ; exit 1 ;;
 	*) PROGX="$1" ; DIR="$2" ; FILE="$3" ;;
@@ -54,6 +58,7 @@ then
 	for TESTN in 1 2 3 4 5 6
 	do
 		eval ARGS=\${ARGS$TESTN}
+		echo Testing for $ARGS
 		$PROGX $ARGS | sort -b > $LOGDIR/log.$PROGX.$TESTN.sorted
 
 		diff -b $LOGDIR/log.$PROGX.$TESTN.sorted $LOGDIR/log.$PROGCH.$TESTN.sorted

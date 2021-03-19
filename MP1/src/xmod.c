@@ -1,6 +1,7 @@
 #include "xmod.h"
 
 int main(int argc, char *argv[]) {
+  start_t = clock();
   bool first_agr = true;
 
   // Flags
@@ -107,11 +108,11 @@ int main(int argc, char *argv[]) {
     } else {
       if (first_agr) {
          if(isdigit(argv[i][0])) {
-          printf("Octal Mode \n");
+          //printf("Octal Mode \n");
           mode = strtol(argv[i], NULL, 8);
         }
         else {
-          printf("Normal Mode \n");
+          //printf("Normal Mode \n");
           mode_state_machine(argv[i]);
           setMode = 1;
         }
@@ -137,7 +138,7 @@ int main(int argc, char *argv[]) {
 
   if (recursive) {
     if ((dir = opendir(working_dir)) == NULL) {
-      if (verbose) printf("trying to open file '%s'\n", working_dir);
+      if (verbose) printf("failed to open file '%s'\n", working_dir);
     } else {
       while ((entry = readdir(dir)) != NULL) {
         if ((strcmp(entry->d_name, ".") == 0) ||
@@ -175,7 +176,6 @@ int main(int argc, char *argv[]) {
 
   old_permission %= 01000;
 
-  sleep(5);
   if (verbose || verboseC)
     printf("changing file '%s', with permission '%o' to '%o'\n",
             working_dir, old_permission, mode);

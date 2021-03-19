@@ -101,11 +101,13 @@ int getPermissions(const char *path){
   
   int changePermissions(int oldPerms){
     int temp =0;
+    /*
     printf("Operation : %d\n", operation);
     printf("User : %d\n", usermode);
     printf("perms0 : %d\n", perms[0]);
     printf("perms1 : %d\n", perms[1]);
     printf("perms2 : %d\n", perms[2]);
+    */
     if (usermode == 0)
     {
       if(perms[0])

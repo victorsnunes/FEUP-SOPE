@@ -3,7 +3,7 @@
 all: xmod
 
 xmod: xmod.c
-	cc *.c -o xmod
+	cc -Wall *.c -o xmod
 
 clean:
 	rm -f xmod

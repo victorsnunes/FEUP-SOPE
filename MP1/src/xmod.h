@@ -25,9 +25,8 @@ pid_t child;
 bool logs = true;
 
 void error_handler();
-void error_unknow_flag(char flag);
-void signal_handler(int signo);
-void signal_handler_child(int signo);
+void signal_handler();
+void signal_handler_child();
 void signal_handler_hup();
 void unlock();
 bool prompt();

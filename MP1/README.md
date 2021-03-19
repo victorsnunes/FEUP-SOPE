@@ -19,3 +19,7 @@
 ## Logs
    Endereço do log precisa ser especificado pela variável de ambiente LOG_FILENAME, caso não esteja especificada não sera efetuado o log.
    O tempo marcado nos logs é em ms desde o início do progrma, usando como refrência o clock do CPU.
+
+
+# Auto avaliação:
+    

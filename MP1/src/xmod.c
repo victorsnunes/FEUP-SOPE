@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
     snprintf(commandline_args, sizeof(commandline_args), "%s", argv[0]);
 
     for (int i = 1; i < argc; i++) {
-      snprintf(commandline_args, sizeof(commandline_args) + 3, "%s : %s",
-               commandline_args, argv[i]);
+      strcat(commandline_args, " : ");
+      strcat(commandline_args, argv[i]);
     }
 
     write_log("PROC_CREAT", commandline_args);
@@ -279,47 +279,4 @@ bool prompt() {
     else if (response[0] == 'n' || response[0] == 'N')
       return false;
   }
-}
-
-void error_handler() {
-  switch (errno) {
-  case EACCES:
-    printf("Permission denied\n");
-    break;
-  case EFAULT:
-    printf("Pathname no accessible\n");
-    break;
-  case EIO:
-    printf("An I/O error occured\n");
-    break;
-  case ELOOP:
-    printf("Too many symbolic links\n");
-    break;
-  case ENOENT:
-    printf("File not found\n");
-    break;
-  case ENOTDIR:
-    printf("Not a directory\n");
-    break;
-  default:
-    printf("something bad happend\n");
-    break;
-  }
-
-  if (logs)
-    write_log("PROC_EXIT", "-5");
-
-  exit(-5);
-}
-
-void write_log(char *event, char *info) {
-  // TODO: Calculate the instant
-  int instant = 0;
-  FILE *log_file = fopen(log_dir, "a");
-  if(log_file == NULL) {
-    perror("erro fopen()");
-    error_handler();
-    }
-  fprintf(log_file, "%d ; %d ; %s ; %s\n", instant, getpid(), event, info);
-  fclose(log_file);
 }

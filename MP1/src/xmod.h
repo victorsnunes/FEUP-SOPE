@@ -4,19 +4,19 @@
 #include <asm-generic/errno-base.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <signal.h>
 #include <ctype.h>
 
 #include "util.h"
 #include "permissions.h"
+#include "log.h"
+#include "error_handler.h"
 
 char *global_file_path;
 int nftot = 0;

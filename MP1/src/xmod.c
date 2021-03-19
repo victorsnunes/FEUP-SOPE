@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
   bool recursive = false;
   bool absolute_path = false;
 
-  __mode_t mode;
+  __mode_t mode = 0;
   char file_path[256];
   char working_dir[256];
   copy(getenv("PWD"), working_dir);
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
       case 'c':
         verboseC = true;
         break;
-      case 'r':
+      case 'R':
         recursive = true;
         break;
       default:
@@ -313,7 +313,10 @@ void write_log(char *event, char *info) {
   // TO DO: Calculate the instant
   int instant = 0;
   FILE *log_file = fopen(log_dir, "a");
-
+  if(log_file == NULL) {
+    perror("erro fopen()");
+    error_handler();
+    }
   fprintf(log_file, "%d ; %d ; %s ; %s\n", instant, getpid(), event, info);
   fclose(log_file);
 }

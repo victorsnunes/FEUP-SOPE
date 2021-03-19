@@ -19,7 +19,6 @@ char* global_file_path;
 int nftot = 0;
 int nfmod = 0;
 bool father = true;
-bool lock = true;
 
 pid_t child;
 

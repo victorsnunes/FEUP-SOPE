@@ -15,7 +15,7 @@
 
 #include "util.h"
 
-char* global_file_path;
+char *global_file_path;
 int nftot = 0;
 int nfmod = 0;
 bool father = true;
@@ -28,6 +28,6 @@ void signal_handler(int signo);
 void signal_handler_child(int signo);
 void unlock();
 bool prompt();
-
+void write_log(char *event, char *info);
 
 #endif // __XMOD_H_

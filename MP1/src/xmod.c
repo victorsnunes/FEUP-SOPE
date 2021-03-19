@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
   old_permission %= 01000;
 
   if (verbose || verboseC)
-    printf("changing file '%s', with permission '%o' to '%o'\n",
+    printf("mode of '%s' change from '%o' to '%o'\n",
             working_dir, old_permission, mode);
 
   if (logs) {

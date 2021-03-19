@@ -34,12 +34,14 @@ int main(int argc, char *argv[]) {
   // Writes the log for process created
   if (logs) {
     char commandline_args[512];
-    strcpy(commandline_args, argv[0]);
+    snprintf(commandline_args, sizeof(commandline_args), "%s", argv[0]);
+    //strcpy(commandline_args, argv[0]);
 
     for (int i = 1; i < argc; i++) {
-      char separator[] = " : ";
+      /*char separator[] = " : ";
       strcat(commandline_args, separator);
-      strcat(commandline_args, argv[i]);
+      strcat(commandline_args, argv[i]);*/
+      snprintf(commandline_args, sizeof(commandline_args), "%s : %s", commandline_args, argv[i]);
     }
 
     write_log("PROC_CREAT", commandline_args);
@@ -164,15 +166,15 @@ int main(int argc, char *argv[]) {
 
   sleep(5);
   if (verbose || verboseC)
-    printf("changing file '%s', with permission '%o' to '%o'\n", working_dir, old_permission, mode);
+    printf("changing file '%s', with permission '%o' to '%o'\n",
+            working_dir, old_permission, mode);
 
   if (logs) {
     char info[286];
     snprintf(info, sizeof(info), "%s : 0%o : 0%o", working_dir, old_permission, mode);
 
     write_log("FILE_MODF", info);
-    
-  
+
   }
   return_code = chmod(working_dir, mode);
   nfmod++;

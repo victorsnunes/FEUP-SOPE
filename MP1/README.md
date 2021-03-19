@@ -24,4 +24,8 @@
 
 
 # Auto avaliação:
-    
+                                 Work done
+    Pedro Carvalho  up201900513  50%
+    Victor Nunes    up201907226  20%
+    Emanuel Trigo   up201605389  20%
+    Leonor Beirão   up201806798  10%

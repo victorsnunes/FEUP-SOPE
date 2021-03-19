@@ -3,7 +3,7 @@
 int main(int argc, char *argv[]) {
   bool first_agr = true;
 
-  //flags
+  // Flags
   bool verbose = false;
   bool verboseC = false;
   bool recursive = false;
@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
   __mode_t mode;
   char file_path[256];
   char working_dir[256];
-  copy(getenv("PWD"), working_dir);
+  snprintf(working_dir, sizeof(working_dir), "%s", getenv("PWD"));
   int return_code = 0;
   int dir_i;
 
@@ -29,19 +29,16 @@ int main(int argc, char *argv[]) {
 
   if (verbose && father) printf("log path: %s\n", log_dir);
 
-  if(father && logs) fclose(fopen(log_dir, "w"));
+  if (father && logs) fclose(fopen(log_dir, "w"));
 
   // Writes the log for process created
   if (logs) {
     char commandline_args[512];
     snprintf(commandline_args, sizeof(commandline_args), "%s", argv[0]);
-    //strcpy(commandline_args, argv[0]);
 
     for (int i = 1; i < argc; i++) {
-      /*char separator[] = " : ";
-      strcat(commandline_args, separator);
-      strcat(commandline_args, argv[i]);*/
-      snprintf(commandline_args, sizeof(commandline_args), "%s : %s", commandline_args, argv[i]);
+      snprintf(commandline_args, sizeof(commandline_args) + 3, "%s : %s",
+               commandline_args, argv[i]);
     }
 
     write_log("PROC_CREAT", commandline_args);
@@ -103,16 +100,14 @@ int main(int argc, char *argv[]) {
       default:
         error_unknow_flag(argv[i][1]);
       }
-    }
-    else {
+    } else {
       if (first_agr) {
         mode = strtol(argv[i], NULL, 8);
         first_agr = false;
-      }
-      else {
+      } else {
         if (argv[i][0] == '/')
           absolute_path = true;
-        copy(argv[i], file_path);
+        snprintf(file_path, sizeof(file_path), "%s", argv[i]);
         dir_i = i;
       }
     }
@@ -121,24 +116,23 @@ int main(int argc, char *argv[]) {
   if (!absolute_path)
     concatenate(working_dir, file_path);
   else
-    copy(file_path, working_dir);
+    snprintf(working_dir, sizeof(working_dir), "%s", file_path);
 
   if (recursive) {
     if ((dir = opendir(working_dir)) == NULL) {
       if (verbose) printf("trying to open file '%s'\n", working_dir);
-    }
-    else {
+    } else {
       while ((entry = readdir(dir)) != NULL) {
-        // TODO should avoid calling the recursive for '.' and '..', but it should call for .smgh files
-        /*if (entry->d_name[0] == '.')
-          continue;*/
-        if ( (strcmp(entry->d_name, '.') == 0) || (strcmp(entry->d_name, '..') == 0))
+        if ((strcmp(entry->d_name, ".") == 0) ||
+            (strcmp(entry->d_name, "..") == 0))
           continue;
         char folder_r[256];
-        copy(working_dir, folder_r);
+        snprintf(folder_r, sizeof(folder_r), "%s", working_dir);
         concatenate(folder_r, entry->d_name);
+
         if ((child = fork()) == -1)
           perror("Failed to fork()");
+
         if (child == 0) {
           father = false;
           argv[dir_i] = folder_r;
@@ -156,7 +150,7 @@ int main(int argc, char *argv[]) {
 
   struct stat *stat_buffer = (struct stat *) malloc(sizeof(struct stat));
 
-  if( (return_code = stat(working_dir, stat_buffer)) != 0) {
+  if ((return_code = stat(working_dir, stat_buffer)) != 0) {
     perror("error stat()");
     error_handler();
   }
@@ -171,10 +165,10 @@ int main(int argc, char *argv[]) {
 
   if (logs) {
     char info[286];
-    snprintf(info, sizeof(info), "%s : 0%o : 0%o", working_dir, old_permission, mode);
+    snprintf(info, sizeof(info), "%s : 0%o : 0%o",
+             working_dir, old_permission, mode);
 
     write_log("FILE_MODF", info);
-
   }
   return_code = chmod(working_dir, mode);
   nfmod++;
@@ -183,7 +177,6 @@ int main(int argc, char *argv[]) {
 
   free(stat_buffer);
 
-  // TODO error handler for child
   if (child != 0) {
     pid_t r = wait(NULL);
     if (verbose)
@@ -197,7 +190,6 @@ int main(int argc, char *argv[]) {
 }
 
 void signal_handler(int signo) {
-
   if (logs) {
     write_log("SIGNAL_RECV", "SIGINT");
   }
@@ -220,7 +212,7 @@ void signal_handler(int signo) {
   }
 
   pid_t group = getpgrp();
-  if(group == -1 ) perror("erro getpgrp()");
+  if (group == -1 ) perror("erro getpgrp()");
 
   if (kill(-group, SIGTERM) != 0) {
     perror("erro kill()");

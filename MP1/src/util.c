@@ -1,11 +1,11 @@
 #include "util.h"
 
 //Concatenate in the format home/file and return it through file
-void concatenate(char home[], char file[]){
+void concatenate(char home[], char file[]) {
   int size_a = 0;
   int size_b = 0;
 
-  while(home[size_a] != '\0'){
+  while(home[size_a] != '\0') {
     size_a++;
   }
 
@@ -14,7 +14,7 @@ void concatenate(char home[], char file[]){
     size_a++;
   }
 
-  while(file[size_b] != '\0'){
+  while(file[size_b] != '\0') {
     home[size_a] = file[size_b];
     size_a++;
     size_b++;
@@ -23,7 +23,7 @@ void concatenate(char home[], char file[]){
 }
 
 //Copy what is inside a to b
-void copy(char a[], char b[]){
+void copy(char a[], char b[]) {
   int i = 0;
   for(; a[i] != '\0'; i++){
     b[i] = a[i];

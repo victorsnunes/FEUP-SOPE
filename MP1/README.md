@@ -13,8 +13,8 @@
 
 # Detalhes de Implementação:
     - Modo Recursivo (-r)
-    Implementado usando forks e chamadas recurivas na main
+   Implementado usando forks e chamadas recurivas na main
     - Sinais 
-    Para criar o prompt (Are you sure...) quando se é recebido o sinal de interrupção (SIGINT) o pai se encarrega de perguntar enquanto os filhos e netos esperam por um sinal com pause(), é enviado ao grupo SIGUSR1 caso a resposta no prompt seja negativa e SIGTERM no caso de uma resposta positiva
+   Para criar o prompt (Are you sure...) quando se é recebido o sinal de interrupção (SIGINT) o pai se encarrega de perguntar enquanto os filhos e netos esperam por um sinal com pause(), é enviado ao grupo SIGUSR1 caso a resposta no prompt seja negativa e SIGTERM no caso de uma resposta positiva
     - Logs
-    Endereço do log precisa ser especificado pela variável de ambiente LOG_FILENAME, caso não esteja especificada não sera efetuado o log
+   Endereço do log precisa ser especificado pela variável de ambiente LOG_FILENAME, caso não esteja especificada não sera efetuado o log

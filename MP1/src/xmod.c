@@ -4,6 +4,8 @@ int main(int argc, char *argv[])
 {
   bool first_agr = true;
 
+  struct stat *stat_buffer;
+
   //flags
   //TODO implement Verbose
   bool verbose = false;
@@ -23,7 +25,7 @@ int main(int argc, char *argv[])
   struct dirent *entry;
   DIR *dir;
 
-  struct sigaction sigint, sigusr;
+  struct sigaction sigint, sigusr, sighup;
   sigset_t smask;
 
   //pid_t child;
@@ -49,6 +51,10 @@ int main(int argc, char *argv[])
   if (working_dir == NULL)
   {
     printf("Failed to get working directory, exiting...\n");
+
+    if (logs)
+      write_log("PROC_EXIT", "-1");
+
     exit(-1);
   }
 
@@ -65,6 +71,13 @@ int main(int argc, char *argv[])
     perror("error on sigaction()");
 
   sigusr.sa_handler = unlock;
+  sigusr.sa_mask = smask;
+  sigusr.sa_flags = 0;
+
+  if (sigaction(SIGINT, &sighup, NULL) == -1)
+    perror("error on sigaction()");
+
+  sigusr.sa_handler = sighup;
   sigusr.sa_mask = smask;
   sigusr.sa_flags = 0;
 
@@ -154,6 +167,17 @@ int main(int argc, char *argv[])
 
   if (verbose || verboseC)
     printf("changing file '%s' to %o\n", working_dir, mode);
+
+  if (logs)
+  {
+    stat(working_dir, stat_buffer);
+    mode_t oldPermission = stat_buffer->st_mode;
+
+    char info[150];
+    snprintf(info, sizeof(info), "%s : %o : %o", working_dir, oldPermission, mode);
+
+    write_log("FILE_MODF", info);
+  }
   return_code = chmod(working_dir, mode);
   nfmod++;
   if (return_code != 0)
@@ -167,31 +191,52 @@ int main(int argc, char *argv[])
       printf("child with pid = %d has finished\n", r);
   }
 
-  //Think of a better way to do this later
   if (logs)
-  {
     write_log("PROC_EXIT", "0");
-  }
 
   return 0;
 }
 
 void signal_handler(int signo)
 {
+  if (log)
+  {
+    write_log("SIGNAL_RECV", "SIGINT");
+  }
   printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
 
   if (!prompt())
   {
+    if (log)
+    {
+      char info[25];
+      snprintf(info, sizeof(info), "SIGUSR1 : %d", getpgrp());
+      write_log("SIGNAL_SENT", info);
+    }
     kill(-getpgrp(), SIGUSR1);
     return;
   }
 
-  kill(-getpgrp(), SIGTERM);
-  exit(-1);
+  if (log)
+  {
+    char info[25];
+    snprintf(info, sizeof(info), "SIGTERM : %d", getpgrp());
+    write_log("SIGNAL_SENT", info);
+  }
+  kill(-getpgrp(), SIGHUP);
+
+  if (logs)
+    write_log("PROC_EXIT", "-2");
+  exit(-2);
 }
 
 void signal_handler_child(int signo)
 {
+  if (log)
+  {
+    write_log("SIGNAL_RECV", "SIGINT");
+  }
+
   printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
   pause();
   return;
@@ -199,7 +244,23 @@ void signal_handler_child(int signo)
 
 void unlock()
 {
+  if (log)
+  {
+    write_log("SIGNAL_RECV", "SIGUSR1");
+  }
   return;
+}
+
+void singnal_handler_hup()
+{
+  if (log)
+  {
+    write_log("SIGNAL_RECV", "SIGHUP");
+  }
+
+  if (logs)
+    write_log("PROC_EXIT", "-3");
+  exit(-3);
 }
 
 bool prompt()
@@ -220,7 +281,10 @@ bool prompt()
 void error_unknow_flag(char flag)
 {
   printf("Error: Unknow flag \'%c\'\n", flag);
-  exit(-1);
+
+  if (logs)
+    write_log("PROC_EXIT", "-4");
+  exit(-4);
 }
 
 void error_handler()
@@ -249,7 +313,10 @@ void error_handler()
     printf("something bad happend\n");
     break;
   }
-  exit(-1);
+
+  if (logs)
+    write_log("PROC_EXIT", "-5");
+  exit(-5);
 }
 
 void write_log(char *event, char *info)

@@ -35,12 +35,8 @@ int main(int argc, char *argv[]) {
   if (logs) {
     char commandline_args[512];
     snprintf(commandline_args, sizeof(commandline_args), "%s", argv[0]);
-    //strcpy(commandline_args, argv[0]);
 
     for (int i = 1; i < argc; i++) {
-      /*char separator[] = " : ";
-      strcat(commandline_args, separator);
-      strcat(commandline_args, argv[i]);*/
       snprintf(commandline_args, sizeof(commandline_args), "%s : %s", commandline_args, argv[i]);
     }
 
@@ -100,8 +96,8 @@ int main(int argc, char *argv[]) {
       case 'R':
         recursive = true;
         break;
-      default:
-        error_unknow_flag(argv[i][1]);
+        default:
+          break;
       }
     }
     else {
@@ -129,10 +125,7 @@ int main(int argc, char *argv[]) {
     }
     else {
       while ((entry = readdir(dir)) != NULL) {
-        // TODO should avoid calling the recursive for '.' and '..', but it should call for .smgh files
-        /*if (entry->d_name[0] == '.')
-          continue;*/
-        if ( (strcmp(entry->d_name, '.') == 0) || (strcmp(entry->d_name, '..') == 0))
+        if ( (strcmp(entry->d_name, ".") == 0) || (strcmp(entry->d_name, "..") == 0))
           continue;
         char folder_r[256];
         copy(working_dir, folder_r);
@@ -183,7 +176,6 @@ int main(int argc, char *argv[]) {
 
   free(stat_buffer);
 
-  // TODO error handler for child
   if (child != 0) {
     pid_t r = wait(NULL);
     if (verbose)
@@ -232,7 +224,7 @@ void signal_handler(int signo) {
   exit(-3);
 }
 
-void signal_handler_child(int signo) {
+void signal_handler_child() {
   if (logs) {
     write_log("SIGNAL_RECV", "SIGINT");
   }
@@ -272,14 +264,6 @@ bool prompt() {
   }
 }
 
-void error_unknow_flag(char flag) {
-  printf("Error: Unknow flag \'%c\'\n", flag);
-
-  if (logs)
-    write_log("PROC_EXIT", "-4");
-  exit(-4);
-}
-
 void error_handler() {
   switch (errno) {
   case EACCES:
@@ -312,7 +296,7 @@ void error_handler() {
 }
 
 void write_log(char *event, char *info) {
-  // TO DO: Calculate the instant
+  // TODO: Calculate the instant
   int instant = 0;
   FILE *log_file = fopen(log_dir, "a");
   if(log_file == NULL) {

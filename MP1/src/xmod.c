@@ -115,7 +115,7 @@ int main(int argc, char *argv[]){
   }
   global_file_path = working_dir;
 
-  sleep(5);
+  //sleep(5);
 
   if(verbose || verboseC) printf("changing file '%s' to %o\n", working_dir, mode);
   return_code = chmod(working_dir, mode);

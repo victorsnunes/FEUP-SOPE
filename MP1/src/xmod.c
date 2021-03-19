@@ -9,6 +9,10 @@ int main(int argc, char *argv[]) {
   bool recursive = false;
   bool absolute_path = false;
 
+  //Aux vars
+  int setMode = 0;
+  extern int oldperms;
+
   __mode_t mode = 0;
   char file_path[256];
   char working_dir[256];
@@ -86,7 +90,7 @@ int main(int argc, char *argv[]) {
 
   // Parse the arguments lines
   for (int i = 1; i < argc; i++) {
-    if (argv[i][0] == '-') {
+    if (argv[i][0] == '-' && argv[i][1] != 'r' && argv[i][1] != 'x' && argv[i][1] != 'w') {
       switch (argv[i][1]) {
       case 'v':
         verbose = true;
@@ -102,7 +106,15 @@ int main(int argc, char *argv[]) {
       }
     } else {
       if (first_agr) {
-        mode = strtol(argv[i], NULL, 8);
+         if(isdigit(argv[i][0])) {
+          printf("Octal Mode \n");
+          mode = strtol(argv[i], NULL, 8);
+        }
+        else {
+          printf("Normal Mode \n");
+          mode_state_machine(argv[i]);
+          setMode = 1;
+        }
         first_agr = false;
       } else {
         if (argv[i][0] == '/')
@@ -117,6 +129,11 @@ int main(int argc, char *argv[]) {
     concatenate(working_dir, file_path);
   else
     snprintf(working_dir, sizeof(working_dir), "%s", file_path);
+
+  if(setMode == 1){
+    oldperms = getPermissions(working_dir);
+    mode = changePermissions(oldperms);
+  }
 
   if (recursive) {
     if ((dir = opendir(working_dir)) == NULL) {

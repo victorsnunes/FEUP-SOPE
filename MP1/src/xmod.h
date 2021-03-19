@@ -11,8 +11,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include "util.h"
+#include "permissions.h"
 #include "log.h"
 #include "error_handler.h"
 

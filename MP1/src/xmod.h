@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -19,13 +20,15 @@ char *global_file_path;
 int nftot = 0;
 int nfmod = 0;
 bool father = true;
-
+char *log_dir;
 pid_t child;
+bool logs = true;
 
 void error_handler();
 void error_unknow_flag(char flag);
 void signal_handler(int signo);
 void signal_handler_child(int signo);
+void signal_handler_hup();
 void unlock();
 bool prompt();
 void write_log(char *event, char *info);

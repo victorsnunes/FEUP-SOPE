@@ -4,21 +4,16 @@ int main(int argc, char *argv[])
 {
   bool first_agr = true;
 
-  struct stat *stat_buffer;
-
   //flags
-  //TODO implement Verbose
   bool verbose = false;
   bool verboseC = false;
   bool recursive = false;
-  bool logs = true;
   bool absolute_path = false;
 
   __mode_t mode;
   char file_path[256];
   char working_dir[256];
   copy(getenv("PWD"), working_dir);
-  char *log_dir = getenv("LOG_FILENAME");
   int return_code = 0;
   int dir_i;
 
@@ -30,17 +25,25 @@ int main(int argc, char *argv[])
 
   //pid_t child;
 
+  log_dir = getenv("LOG_FILENAME");
+
   if (log_dir == NULL)
     logs = false;
+
+  if (verbose && father) printf("log path: %s\n", log_dir);
+
+  if(father && logs) fclose(fopen(log_dir, "w"));
 
   //Write log for process created
   if (logs)
   {
-    char commandline_args[1024] = argv[0];
+    char commandline_args[512];
+    strcpy(commandline_args, argv[0]);
 
     for (int i = 1; i < argc; i++)
     {
-      strcat(commandline_args, " : ");
+      char separator[] = " : ";
+      strcat(commandline_args, separator);
       strcat(commandline_args, argv[i]);
     }
 
@@ -58,8 +61,10 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
+
   if (sigemptyset(&smask) == -1)
     perror("error on sigemptyset()");
+
   if (father)
     sigint.sa_handler = signal_handler;
   else
@@ -74,12 +79,12 @@ int main(int argc, char *argv[])
   sigusr.sa_mask = smask;
   sigusr.sa_flags = 0;
 
-  if (sigaction(SIGINT, &sighup, NULL) == -1)
-    perror("error on sigaction()");
 
-  sigusr.sa_handler = sighup;
-  sigusr.sa_mask = smask;
-  sigusr.sa_flags = 0;
+  sighup.sa_handler = signal_handler_hup;
+  sighup.sa_mask = smask;
+  sighup.sa_flags = 0;
+  if (sigaction(SIGTERM, &sighup, NULL) == -1)
+    perror("error on sigaction()");
 
   if (sigaction(SIGUSR1, &sigusr, NULL) == -1)
     perror("error on sigaction()");
@@ -133,7 +138,7 @@ int main(int argc, char *argv[])
   {
     if ((dir = opendir(working_dir)) == NULL)
     {
-      perror("Failed to open dir...");
+      if (verbose) printf("trying to open file '%s'\n", working_dir);
       //error_handler();
     }
     else
@@ -146,42 +151,53 @@ int main(int argc, char *argv[])
         char folder_r[256];
         copy(working_dir, folder_r);
         concatenate(folder_r, entry->d_name);
-        father = false;
         if ((child = fork()) == -1)
           perror("Failed to fork()");
         if (child == 0)
         {
+          father = false;
           argv[dir_i] = folder_r;
           if (verbose)
             printf("forking and calling main with argv = %s\n", argv[dir_i]);
           main(argc, argv);
-          break;
+          exit(0);
         }
       }
       closedir(dir);
     }
   }
+
   global_file_path = working_dir;
 
-  //sleep(5);
+  struct stat *stat_buffer = (struct stat *) malloc(sizeof(struct stat));
 
+  if( (return_code = stat(working_dir, stat_buffer)) != 0){
+    perror("error stat()");
+    error_handler();
+  }
+  mode_t old_permission = stat_buffer->st_mode;
+
+  old_permission %= 01000;
+
+  sleep(5);
   if (verbose || verboseC)
-    printf("changing file '%s' to %o\n", working_dir, mode);
+    printf("changing file '%s', with permission '%o' to '%o'\n", working_dir, old_permission, mode);
 
   if (logs)
   {
-    stat(working_dir, stat_buffer);
-    mode_t oldPermission = stat_buffer->st_mode;
-
-    char info[150];
-    snprintf(info, sizeof(info), "%s : %o : %o", working_dir, oldPermission, mode);
+    char info[286];
+    snprintf(info, sizeof(info), "%s : 0%o : 0%o", working_dir, old_permission, mode);
 
     write_log("FILE_MODF", info);
+    
+  
   }
   return_code = chmod(working_dir, mode);
   nfmod++;
   if (return_code != 0)
     error_handler();
+
+  free(stat_buffer);
 
   //TODO error handler for child
   if (child != 0)
@@ -199,15 +215,16 @@ int main(int argc, char *argv[])
 
 void signal_handler(int signo)
 {
-  if (log)
+
+  if (logs)
   {
     write_log("SIGNAL_RECV", "SIGINT");
   }
-  printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
+  printf("%d ; %s ; %d ; %d\n", getpid(), global_file_path, nftot, nfmod);
 
   if (!prompt())
   {
-    if (log)
+    if (logs)
     {
       char info[25];
       snprintf(info, sizeof(info), "SIGUSR1 : %d", getpgrp());
@@ -217,45 +234,52 @@ void signal_handler(int signo)
     return;
   }
 
-  if (log)
+  if (logs)
   {
     char info[25];
     snprintf(info, sizeof(info), "SIGTERM : %d", getpgrp());
     write_log("SIGNAL_SENT", info);
   }
-  kill(-getpgrp(), SIGHUP);
+
+  pid_t group = getpgrp();
+  if(group == -1 ) perror("erro getpgrp()");
+
+  if (kill(-group, SIGTERM) != 0){
+    perror("erro kill()");
+  }
+  printf("working...\n");
 
   if (logs)
-    write_log("PROC_EXIT", "-2");
-  exit(-2);
+    write_log("PROC_EXIT", "-3");
+  exit(-3);
 }
 
 void signal_handler_child(int signo)
 {
-  if (log)
+  if (logs)
   {
     write_log("SIGNAL_RECV", "SIGINT");
   }
 
-  printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
+  printf("%d ; %s ; %d ; %d\n", getpid(), global_file_path, nftot, nfmod);
   pause();
   return;
 }
 
 void unlock()
 {
-  if (log)
+  if (logs)
   {
     write_log("SIGNAL_RECV", "SIGUSR1");
   }
   return;
 }
 
-void singnal_handler_hup()
+void signal_handler_hup()
 {
-  if (log)
+  if (logs)
   {
-    write_log("SIGNAL_RECV", "SIGHUP");
+    write_log("SIGNAL_RECV", "SIGTERM");
   }
 
   if (logs)
@@ -323,8 +347,8 @@ void write_log(char *event, char *info)
 {
   //TO DO: Calculate the instant
   int instant = 0;
-  FILE *log_file = fopen(log_dir, 'a');
+  FILE *log_file = fopen(log_dir, "a");
 
   fprintf(log_file, "%d ; %d ; %s ; %s\n", instant, getpid(), event, info);
-  fclose(log_dir);
+  fclose(log_file);
 }

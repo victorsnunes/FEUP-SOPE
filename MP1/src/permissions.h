@@ -1,3 +1,6 @@
+#ifndef __PERMISSIONS_H_
+#define __PERMISSIONS_H_
+
 #include <asm-generic/errno-base.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -20,3 +23,5 @@ int getPermissions(const char *path);
 
 //Caculate file final permissions (octal)
 int changePermissions(int oldPerms);
+
+#endif

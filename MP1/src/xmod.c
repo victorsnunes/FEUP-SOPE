@@ -110,8 +110,7 @@ int main(int argc, char *argv[]) {
          if(isdigit(argv[i][0])) {
           //printf("Octal Mode \n");
           mode = strtol(argv[i], NULL, 8);
-        }
-        else {
+        } else {
           //printf("Normal Mode \n");
           mode_state_machine(argv[i]);
           setMode = 1;

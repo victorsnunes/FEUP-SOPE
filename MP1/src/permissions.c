@@ -153,14 +153,29 @@ int getPermissions(const char *path){
     printf("xor1 : %o\n", (oldPerms & ~temp));
     printf("or : %o\n", oldPerms | temp);
   
-*/
+
     if(operation == 2)
       return temp;
     if(operation == 0)
       return (oldPerms & ~temp);
     if(operation == 1)
       return oldPerms | temp;
-    
-   
+*/
+    if(operation == 2) {
+        if(usermode == 0)
+            return temp;
+        if (usermode == 1)
+            return (oldPerms & ~(S_ISUID | S_IRUSR | S_IWUSR | S_IXUSR)) | (temp & (S_ISUID | S_IRUSR | S_IWUSR | S_IXUSR));
+        if (usermode == 2)
+            return (oldPerms & ~(S_ISGID | S_IRGRP | S_IWGRP | S_IXGRP)) | (temp & (S_ISGID | S_IRGRP | S_IWGRP | S_IXGRP));
+        if (usermode == 3)
+            return (oldPerms & ~(S_IROTH | S_IWOTH | S_IXOTH)) | (temp & (S_IROTH | S_IWOTH | S_IXOTH));
+    }
+    if(operation == 0)
+        return (oldPerms & ~temp);
+
+    if(operation == 1)
+        return oldPerms | temp;
+
     return 0;
   }

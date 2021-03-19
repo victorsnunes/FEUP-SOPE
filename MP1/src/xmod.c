@@ -23,10 +23,10 @@ int main(int argc, char *argv[])
   struct dirent *entry;
   DIR *dir;
 
-  struct sigaction new;
+  struct sigaction sigint, sigusr;
   sigset_t smask;
 
-  pid_t child;
+  //pid_t child;
 
   if (log_dir == NULL)
     logs = false;
@@ -54,11 +54,21 @@ int main(int argc, char *argv[])
 
   if (sigemptyset(&smask) == -1)
     perror("error on sigemptyset()");
-  new.sa_handler = signal_handler;
-  new.sa_mask = smask;
-  new.sa_flags = 0;
+  if (father)
+    sigint.sa_handler = signal_handler;
+  else
+    sigint.sa_handler = signal_handler_child;
+  sigint.sa_mask = smask;
+  sigint.sa_flags = 0;
 
-  if (sigaction(SIGINT, &new, NULL) == -1)
+  if (sigaction(SIGINT, &sigint, NULL) == -1)
+    perror("error on sigaction()");
+
+  sigusr.sa_handler = unlock;
+  sigusr.sa_mask = smask;
+  sigusr.sa_flags = 0;
+
+  if (sigaction(SIGUSR1, &sigusr, NULL) == -1)
     perror("error on sigaction()");
 
   nftot++; //Not sure where to put this
@@ -123,7 +133,7 @@ int main(int argc, char *argv[])
         char folder_r[256];
         copy(working_dir, folder_r);
         concatenate(folder_r, entry->d_name);
-
+        father = false;
         if ((child = fork()) == -1)
           perror("Failed to fork()");
         if (child == 0)
@@ -140,7 +150,7 @@ int main(int argc, char *argv[])
   }
   global_file_path = working_dir;
 
-  //sleep(5);
+  sleep(5);
 
   if (verbose || verboseC)
     printf("changing file '%s' to %o\n", working_dir, mode);
@@ -168,10 +178,28 @@ int main(int argc, char *argv[])
 
 void signal_handler(int signo)
 {
-  printf("%d ; %s ; %d ; %d\n", getpid(), global_file_path, nftot, nfmod);
+  printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
+
   if (!prompt())
+  {
+    kill(-getpgrp(), SIGUSR1);
     return;
+  }
+
+  kill(-getpgrp(), SIGTERM);
   exit(-1);
+}
+
+void signal_handler_child(int signo)
+{
+  printf("%d ; %s ; %d ; %d\n", getgid(), global_file_path, nftot, nfmod);
+  pause();
+  return;
+}
+
+void unlock()
+{
+  return;
 }
 
 bool prompt()
@@ -182,7 +210,6 @@ bool prompt()
     setbuf(stdout, NULL);
     printf("Are you sure you want to cancel? (y/n)\n");
     scanf("%s", response);
-    printf("response %c\n", response[0]);
     if (response[0] == 'y' || response[0] == 'Y')
       return true;
     else if (response[0] == 'n' || response[0] == 'N')

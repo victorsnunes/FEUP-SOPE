@@ -18,10 +18,15 @@
 char *global_file_path;
 int nftot = 0;
 int nfmod = 0;
+bool father = true;
+
+pid_t child;
 
 void error_handler();
 void error_unknow_flag(char flag);
 void signal_handler(int signo);
+void signal_handler_child(int signo);
+void unlock();
 bool prompt();
 void write_log(char *event, char *info);
 

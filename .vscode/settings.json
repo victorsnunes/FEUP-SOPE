@@ -4,6 +4,9 @@
         "permissions.h": "c",
         "types.h": "c",
         "stdio.h": "c",
-        "wait.h": "c"
+        "wait.h": "c",
+        "xmod.h": "c",
+        "ctype.h": "c",
+        "util.h": "c"
     }
 }

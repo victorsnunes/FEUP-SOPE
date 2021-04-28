@@ -86,7 +86,7 @@ void *Client(void *arg){
     open_private_fifo();
 
     //Criar mensagem
-    create_message(client_id, 1, getpid(), pthread_self());
+    msg message = create_message(client_id, 1, getpid(), pthread_self());
 
     //envia pedido ao servidor
     while(1){
@@ -109,6 +109,9 @@ void *Client(void *arg){
             } else { // error sending request
                 unlink(private_fifo_path);
                 return NULL;
+            }
+        }
+    }
     //não esquecer de fazer o registro
     return NULL;
 }

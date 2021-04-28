@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "stdlib.h": "c",
-        "permissions.h": "c",
-        "types.h": "c",
-        "stdio.h": "c",
-        "wait.h": "c"
-    }
-}

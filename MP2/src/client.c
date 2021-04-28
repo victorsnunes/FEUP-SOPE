@@ -137,7 +137,8 @@ void *client(void *arg){
     //TODO: Fechar fifos, acabou o tempo estipulado pelo utilizador
 
     //TODO: não esquecer de fazer o registro
-    printf("%d ; %d ; %d ; %d ; %d ; %d ; %d", time(), id, t, pid, tid, ret, oper);
+    char oper[];
+    printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
 
     return NULL;
 }

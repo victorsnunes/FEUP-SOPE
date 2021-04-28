@@ -20,10 +20,9 @@
 
 #define NUMBER_OF_IMPUTS 4
 #define MAX_RANDOM_NUMBER 1000
+#define BUFFER_SIZE 3000
 
 bool running = true;
-
-int client_id = 0;
 
 typedef struct{
     int id;
@@ -42,7 +41,8 @@ int public_fifo;
 //Main thread tid
 pthread_t main_thread_tid;
 
-msg create_message(int id, int t, int pid, pthread_t tid, int res){
+msg create_message(int id, int t, int pid, pthread_t tid){
+    int res = -1;
     msg message = {id, t, pid, tid, res};
 
     return message;
@@ -59,9 +59,9 @@ int open_public_fifo(char* fifo_path){
     return 0;
 }
 
-int create_private_fifo(){
-    char private_fifo_path[3000];
-   // create path sprintf()
+int create_private_fifo(pid_t pid, pthread_t tid){
+    char private_fifo_path[BUFFER_SIZE];
+    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid)
 
     if(mkfifo(private_fifo_path, 0660)){
         printf("Error creating private FIFO");
@@ -82,13 +82,27 @@ void *Client(void *arg){
     int id = *(int *) arg;
     free(arg);
 
-    //abre o fifo privado
+    pid_t pid = getpid();
+    pthread_t tid = pthread_self();
+    t = rand()%8 + 1;
+
+    //Create private fifo
+    char private_fifo_path[BUFFER_SIZE];
+    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid)
+
+    if(mkfifo(private_fifo_path, 0660)){
+        printf("Error creating private FIFO");
+        return 1;
+    }
+    
+    
+    //TODO: Criar função
     open_private_fifo();
 
-    //Criar mensagem
-    msg message = create_message(client_id, 1, getpid(), pthread_self());
+    //Create message
+    msg message = create_message(id, t, pid, tid);
 
-    //envia pedido ao servidor
+    //Sends a request in the public fifo
     while(1){
         int ret;
         ret = write(public_fifo, message, sizeof(message));
@@ -112,12 +126,17 @@ void *Client(void *arg){
             }
         }
     }
-    //não esquecer de fazer o registro
+    //TODO: Esperar em bloqueamento pela resposta
+
+    //TODO: Fechar fifos, acabou o tempo estipulado pelo utilizador
+
+    //TODO: não esquecer de fazer o registro
     return NULL;
 }
 
 int main(int argc, char** argv){
     main_thread_tid = pthread_self();
+    srand(time(NULL));
 
     // Setup FIFO for Read only
     if ( open_public_fifo() == 1){
@@ -141,6 +160,7 @@ int main(int argc, char** argv){
         }
 
         id++;
+        
         //Random intervals in miliseconds
         sleep((rand()%MAX_RANDOM_NUMBER)/1000);
     }
@@ -149,7 +169,10 @@ int main(int argc, char** argv){
         perror("Failed close fifo");
         exit(1);
     }
+
     printf("nseconds = %d, fifopath = %s\n", nseconds, fifopath);
+
+    //TODO: Fazer registros
 
     return 0;
 }

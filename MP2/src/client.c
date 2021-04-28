@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
@@ -26,21 +25,16 @@ bool running = true;
 
 int client_id = 0;
 
-typedef struct msg { 
+typedef struct{
+    int id;
+    int t;
+    pid_t tid;
+    pthread_t tid;
+    int res;
+} msg; 
+
 void alarm_handler();
 void print_usage();
-
-void *client(void *arg){
-    int id = *(int *) arg;
-    free(arg);
-
-    struct msg { 
-        int i;
-        int t;
-        pid_t pid;
-        pthread_t tid;
-        int res;
-} msg;
 
 //Public Fifo
 int public_fifo;
@@ -48,8 +42,7 @@ int public_fifo;
 //Main thread tid
 pthread_t main_thread_tid;
 
-msg create_message(int id, int t, int pid, pthread_t tid, int res)
-{
+msg create_message(int id, int t, int pid, pthread_t tid, int res){
     msg message = {id, t, pid, tid, res};
 
     return message;
@@ -78,10 +71,6 @@ int create_private_fifo(){
     return 0;
 }
 
-int create_private_fifo(){
-    
-}
-
 int sendMessage(int fifo, msg message){
    // int i = write(public_fifo, )
 
@@ -89,8 +78,10 @@ int sendMessage(int fifo, msg message){
 }
 
 
-void Client(int id){
-    
+void *Client(void *arg){
+    int id = *(int *) arg;
+    free(arg);
+
     //abre o fifo privado
     open_private_fifo();
 
@@ -112,7 +103,7 @@ void Client(int id){
 
                 unlink(private_fifo_path);
                 return NULL;
-            }else if(errno == EGAIN){ // FULL public FIFO, try again
+            } else if(errno == EGAIN){ // FULL public FIFO, try again
                 usleep(50);
                 continue;
             } else { // error sending request
@@ -123,61 +114,10 @@ void Client(int id){
 }
 
 int main(int argc, char** argv){
-    int nseconds;
-    int public_fifo;
-    char *fifopath;
-
-    struct sigaction sigalarm;
-    sigset_t smask;
-
-    //PARSER
-    if (argc > NUMBER_OF_IMPUTS){
-        printf("Too many inputs\n");
-        print_usage();
-        exit(1);
-    } if(argc < NUMBER_OF_IMPUTS){
-        printf("Too few inputs\n");
-        print_usage();
-        exit(1);
-    } else {
-        for(int i = 1; i < NUMBER_OF_IMPUTS; i++){
-            if(argv[i][0] == '-'){
-                if(argv[i][1] == 't'){
-                    i++;
-                    nseconds = atoi(argv[i]);
-                } else {
-                    printf("Invalid flag\n")
-                    print_usage();
-                }
-            } else {
-                fifopath = argv[i];
-            }
-        }
-
-        //success
-        //write log IWANT
-        break;
-
-    //Setup the signal handler for the alarm, and the alarm
-    if (sigemptyset(&smask) == -1)
-        perror("error on sigemptyset()");
-
-    sigalarm.sa_handler = alarm_handler;
-    sigalarm.sa_mask = smask;
-    sigalarm.sa_flags = 0;
-    if (sigaction(SIGALRM, &sigalarm, NULL) == -1){
-        perror("Failed to set up alarm handler");
-        exit(1);
-    }
-    alarm(nseconds);
-
-}
-
-int main(int argc, char** argv){
+    main_thread_tid = pthread_self();
 
     // Setup FIFO for Read only
-    if ( (public_fifo = open(fifopath, O_WRONLY | O_CREAT)) == -1){
-        perror("Failed to open FIFO");
+    if ( open_public_fifo() == 1){
         exit(1);
     }    
 

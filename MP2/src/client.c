@@ -61,7 +61,7 @@ int open_public_fifo(char* fifo_path){
 
 int create_private_fifo(pid_t pid, pthread_t tid){
     char private_fifo_path[BUFFER_SIZE];
-    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid)
+    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid);
 
     if(mkfifo(private_fifo_path, 0660)){
         printf("Error creating private FIFO");
@@ -83,12 +83,12 @@ void *Client(void *arg){
     free(arg);
 
     pid_t pid = getpid();
-    pthread_t tid = pthread_self();
-    t = rand()%8 + 1;
+    pthread_t _tid = pthread_self();
+    int t = rand()%8 + 1;
 
     //Create private fifo
     char private_fifo_path[BUFFER_SIZE];
-    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid)
+    sprintf(private_fifo_path, "/tmp/%d.%d", pid, tid);
 
     if(mkfifo(private_fifo_path, 0660)){
         printf("Error creating private FIFO");
@@ -105,7 +105,7 @@ void *Client(void *arg){
     //Sends a request in the public fifo
     while(1){
         int ret;
-        ret = write(public_fifo, message, sizeof(message));
+        ret = write(public_fifo, &message, sizeof(message));
 
         //error 
         if(ret == -1){
@@ -138,8 +138,35 @@ int main(int argc, char** argv){
     main_thread_tid = pthread_self();
     srand(time(NULL));
 
+    int nseconds;
+    char *fifopath;
+
+    //PARSER
+    if (argc > NUMBER_OF_IMPUTS){
+        printf("Too many inputs\n");
+        print_usage();
+        exit(1);
+    } if(argc < NUMBER_OF_IMPUTS){
+        printf("Too few inputs\n");
+        print_usage();
+        exit(1);
+    } else {
+        for(int i = 1; i < NUMBER_OF_IMPUTS; i++){
+            if(argv[i][0] == '-'){
+                if(argv[i][1] == 't'){
+                    i++;
+                    nseconds = atoi(argv[i]);
+                } else {
+                    printf("Invalid flag\n");
+                    print_usage();
+                }
+            } else {
+                fifopath = argv[i];
+            }
+        }
+    }
     // Setup FIFO for Read only
-    if ( open_public_fifo() == 1){
+    if ( open_public_fifo(fifopath) == 1){
         exit(1);
     }    
 

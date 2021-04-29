@@ -107,6 +107,9 @@ void *client(void *arg){
         int ret;
         ret = write(public_fifo, &message, sizeof(message));
 
+        //Client just made a request
+        printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, -1, "IWANT");
+
         //error 
         if(ret == -1){
             if(errno == EPIPE){ // server closes public FIFO
@@ -183,8 +186,9 @@ int main(int argc, char** argv){
             }
         }
     }
+
     // Setup FIFO for Read only
-    if ( open_public_fifo(fifopath) == 1){
+    if (open_public_fifo(fifopath) == 1){
         exit(1);
     }    
 

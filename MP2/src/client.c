@@ -24,7 +24,7 @@
 
 /*  TEMP   */
 #define ALARM_CHILL 0
-int alarm_stat = 1;
+int alarm_stat = 0;
 void open_private_fifo() {};
 
 
@@ -73,7 +73,6 @@ int create_private_fifo(pid_t pid, pthread_t tid){
         printf("Error creating private FIFO\n");
         return 1;
     }
-
     return 0;
 }
 
@@ -94,19 +93,27 @@ void *client(void *arg){
 
     //Create private fifo
     char private_fifo_path[BUFFER_SIZE];
-    sprintf(private_fifo_path, "/tmp/%d.%lu", pid, tid);
-    printf("Created private fifo at %s\n", private_fifo_path);
+    sprintf(private_fifo_path, "/tmp/%d.%ld", pid, tid);
 
     if(mkfifo(private_fifo_path, 0660)){
-        printf("Error creating private FIFO");
+        perror("error log private");
+        printf("Error creating private FIFO\n");
         return NULL;
     }
-    
-    //TODO: Criar função
-    open_private_fifo();
+  
+ 
+    // //TODO: Criar função
+    // int private_fifo;
+    // if((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
+    //     printf("error opening private fifo\n");
+    //     unlink(private_fifo_path);
+    //     return NULL;
+    // }
 
     //Create message
     msg message = create_message(id, t, pid, tid);
+    msg message2;
+    int private_fifo = 0;
 
     //Sends a request in the public fifo
     while(1){
@@ -119,7 +126,7 @@ void *client(void *arg){
         //error 
         if(ret == -1){
             if(errno == EPIPE){ // server closes public FIFO
-                if(alarm_stat == ALARM_CHILL){
+                if(alarm_stat == 0){
                     alarm(0);
                     pthread_kill(main_thread_tid, SIGALRM);
                 }
@@ -134,14 +141,24 @@ void *client(void *arg){
                 return NULL;
             }
         }
+
+        break;
+    }
+
+      while ((private_fifo = open (private_fifo_path, O_RDONLY)) < 0){
+        read(private_fifo, &message2, sizeof(message2));
+        printf("mensagem recebida %d\n", message2.res);
     }
     //TODO: Esperar em bloqueamento pela resposta
+    //int ret2 = read(private_fifo, &message2, sizeof(message2));
+   // printf("message recieved: %d", message2.res);
+
 
     //TODO: Fechar fifos, acabou o tempo estipulado pelo utilizador
 
     //TODO: não esquecer de fazer o registro
-    char oper[];
-    printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
+    //char oper[];
+    //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
 
     return NULL;
 }
@@ -169,7 +186,7 @@ int main(int argc, char** argv){
         for(int i = 1; i < NUMBER_OF_INPUTS; i++){
             if(argv[i][0] == '-'){
                 if(argv[i][1] == 't'){
-                    i++; //Acho que este i++ está errado
+                    i++;
                     nseconds = atoi(argv[i]);
                 } else {
                     printf("Invalid flag\n");
@@ -219,9 +236,7 @@ int main(int argc, char** argv){
         id++;
 
         //Random intervals in miliseconds
-        float interval = (rand()%MAX_RANDOM_NUMBER);
-        printf("interval = %f\n", interval);
-        sleep((rand()%MAX_RANDOM_NUMBER));
+        usleep((rand()%MAX_RANDOM_NUMBER));
     }
 
     if (close(public_fifo) == -1){

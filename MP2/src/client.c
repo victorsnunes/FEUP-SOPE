@@ -18,7 +18,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define NUMBER_OF_IMPUTS 4
+#define NUMBER_OF_INPUTS 4
 #define MAX_RANDOM_NUMBER 1000
 #define BUFFER_SIZE 3000
 
@@ -113,6 +113,9 @@ void *client(void *arg){
         int ret;
         ret = write(public_fifo, &message, sizeof(message));
 
+        //Client just made a request
+        printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, -1, "IWANT");
+
         //error 
         if(ret == -1){
             if(errno == EPIPE){ // server closes public FIFO
@@ -154,19 +157,19 @@ int main(int argc, char** argv){
     sigset_t smask;
 
     //PARSER
-    if (argc > NUMBER_OF_IMPUTS){
+    if (argc > NUMBER_OF_INPUTS){
         printf("Too many inputs\n");
         print_usage();
         exit(1);
-    } if(argc < NUMBER_OF_IMPUTS){
+    } if(argc < NUMBER_OF_INPUTS){
         printf("Too few inputs\n");
         print_usage();
         exit(1);
     } else {
-        for(int i = 1; i < NUMBER_OF_IMPUTS; i++){
+        for(int i = 1; i < NUMBER_OF_INPUTS; i++){
             if(argv[i][0] == '-'){
                 if(argv[i][1] == 't'){
-                    i++;
+                    i++; //Acho que este i++ está errado
                     nseconds = atoi(argv[i]);
                 } else {
                     printf("Invalid flag\n");
@@ -177,8 +180,9 @@ int main(int argc, char** argv){
             }
         }
     }
+
     // Setup FIFO for Read only
-    if ( open_public_fifo(fifopath) == 1){
+    if (open_public_fifo(fifopath) == 1){
         exit(1);
     }    
 

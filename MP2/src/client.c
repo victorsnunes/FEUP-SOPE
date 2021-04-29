@@ -2,6 +2,8 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include "common.h"
+
 #include <semaphore.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -30,14 +32,6 @@ void open_private_fifo() {};
 
 bool running = true;
 
-typedef struct{
-    int id;
-    int t;
-    pid_t pid;
-    pthread_t tid;
-    int res;
-} msg; 
-
 void alarm_handler();
 void print_usage();
 
@@ -47,9 +41,9 @@ int public_fifo;
 //Main thread tid
 pthread_t main_thread_tid;
 
-msg create_message(int id, int t, int pid, pthread_t tid){
+Message create_message(int id, int t, int pid, pthread_t tid){
     int res = -1;
-    msg message = {id, t, pid, tid, res};
+    Message message = {id, pid, tid, t, res};
 
     return message;
 }
@@ -74,12 +68,6 @@ int create_private_fifo(pid_t pid, pthread_t tid){
         return 1;
     }
     return 0;
-}
-
-int sendMessage(int fifo, msg message){
-   // int i = write(public_fifo, )
-
-   return 0;
 }
 
 
@@ -111,8 +99,7 @@ void *client(void *arg){
     // }
 
     //Create message
-    msg message = create_message(id, t, pid, tid);
-    msg message2;
+    Message message = create_message(id, t, pid, tid);
     int private_fifo = 0;
 
     //Sends a request in the public fifo
@@ -142,10 +129,12 @@ void *client(void *arg){
         break;
     }
 
-      while ((private_fifo = open (private_fifo_path, O_RDONLY)) < 0){
-        read(private_fifo, &message2, sizeof(message2));
-        printf("mensagem recebida %d\n", message2.res);
-    }
+    Message response;
+    private_fifo = open (private_fifo_path, O_RDONLY);
+
+    read(private_fifo, &response, sizeof(response));
+    printf("mensagem recebida %d\n", response.tskres);
+
     //TODO: Esperar em bloqueamento pela resposta
     //int ret2 = read(private_fifo, &message2, sizeof(message2));
    // printf("message recieved: %d", message2.res);
@@ -231,6 +220,7 @@ int main(int argc, char** argv){
 
         id++;
 
+        running = false;
         //Random intervals in miliseconds
         usleep((rand()%MAX_RANDOM_NUMBER));
     }

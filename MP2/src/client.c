@@ -22,6 +22,12 @@
 #define MAX_RANDOM_NUMBER 1000
 #define BUFFER_SIZE 3000
 
+/*  TEMP   */
+#define ALARM_CHILL 0
+int alarm_stat = 0;
+void open_private_fifo() {};
+
+
 bool running = true;
 
 typedef struct{
@@ -38,8 +44,6 @@ void print_usage();
 //Public Fifo
 int public_fifo;
 
-int alarm_stat = 0;
-
 //Main thread tid
 pthread_t main_thread_tid;
 
@@ -51,17 +55,26 @@ msg create_message(int id, int t, int pid, pthread_t tid){
 }
 
 int open_public_fifo(char* fifo_path){
-    public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK);
+    public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK | O_CREAT);
 
     if(public_fifo == -1){
-        printf("Error opening public FIFO");
+        perror("Error opening public FIFO");
         return 1;
     }
 
     return 0;
 }
 
+int create_private_fifo(pid_t pid, pthread_t tid){
+    char private_fifo_path[BUFFER_SIZE];
+    sprintf(private_fifo_path, "/tmp/%d.%lu", pid, tid);
 
+    if(mkfifo(private_fifo_path, 0660)){
+        printf("Error creating private FIFO\n");
+        return 1;
+    }
+    return 0;
+}
 
 int sendMessage(int fifo, msg message){
    // int i = write(public_fifo, )
@@ -70,9 +83,7 @@ int sendMessage(int fifo, msg message){
 }
 
 
-
-
-void *Client(void *arg){
+void *client(void *arg){
     int id = *(int *) arg;
     free(arg);
 
@@ -116,7 +127,7 @@ void *Client(void *arg){
                     alarm(0);
                     pthread_kill(main_thread_tid, SIGALRM);
                 }
-
+                //TODO: Deve esperar resposta...
                 unlink(private_fifo_path);
                 return NULL;
             } else if(errno == EAGAIN){ // FULL public FIFO, try again
@@ -143,6 +154,9 @@ void *Client(void *arg){
     //TODO: Fechar fifos, acabou o tempo estipulado pelo utilizador
 
     //TODO: não esquecer de fazer o registro
+    //char oper[];
+    //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
+
     return NULL;
 }
 
@@ -152,6 +166,9 @@ int main(int argc, char** argv){
 
     int nseconds;
     char *fifopath;
+
+    struct sigaction sigalarm;
+    sigset_t smask;
 
     //PARSER
     if (argc > NUMBER_OF_INPUTS){
@@ -182,6 +199,18 @@ int main(int argc, char** argv){
         exit(1);
     }    
 
+    //Setup the signal handler for the alarm, and the alarm
+    if (sigemptyset(&smask) == -1)
+        perror("error on sigemptyset()");
+    sigalarm.sa_handler = alarm_handler;
+    sigalarm.sa_mask = smask;
+    sigalarm.sa_flags = 0;
+    if (sigaction(SIGALRM, &sigalarm, NULL) == -1){
+        perror("Failed to set up alarm handler");
+        exit(1);
+    }
+    alarm(nseconds);
+
     pthread_t thread_id;
     int id = 0;
 
@@ -190,28 +219,26 @@ int main(int argc, char** argv){
         int *client_atr = (int *)malloc(sizeof(int));
         *client_atr = id; 
 
-        if(pthread_create(&thread_id, NULL, Client, client_atr)){
+        if(pthread_create(&thread_id, NULL, client, client_atr)){
             perror("Failed to create thread");
-
+            break;
         }
     
         if(pthread_detach(thread_id)){
-            perror("Failed to detach thread");  
+            perror("Failed to detach thread");
+            break;
         }
 
         id++;
-        
+
         //Random intervals in miliseconds
-        sleep((rand()%MAX_RANDOM_NUMBER)/1000);
-        
+        usleep((rand()%MAX_RANDOM_NUMBER));
     }
 
     if (close(public_fifo) == -1){
         perror("Failed close fifo");
         exit(1);
     }
-
-    printf("nseconds = %d, fifopath = %s\n", nseconds, fifopath);
 
     //TODO: Fazer registros
 

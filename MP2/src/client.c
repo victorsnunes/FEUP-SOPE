@@ -80,9 +80,8 @@ void *client(void *arg){
     char private_fifo_path[BUFFER_SIZE];
     sprintf(private_fifo_path, "/tmp/%d.%ld", pid, tid);
 
-    if(mkfifo(private_fifo_path, 0660)){
+    if(mkfifo(private_fifo_path, 0660) && !running){
         perror("error log private");
-        printf("Error creating private FIFO\n");
         decrease_thread_counter();
         return NULL;
     }
@@ -123,33 +122,46 @@ void *client(void *arg){
 
     //Client just made a request
     printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "IWANT");
+    usleep(10);
 
-    Message response;
-    while((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
-        //Too many open fd, wait and try again
-        if(errno == EMFILE || errno == ENOMEM){
-            usleep(50);
-            continue;
+    printf("it got here running = %d\n", running);
+    while(1){
+        private_fifo = open(private_fifo_path, O_RDONLY);
+        if(private_fifo == -1){
+            //Too many open fd, wait and try again
+            if((errno == EMFILE || errno == ENOMEM) && running){
+                usleep(50);
+                continue;
+            }
+            //error caused by alarm
+            if(!running){
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP");
+                decrease_thread_counter();
+                return NULL;
+            }
+            //Somthing unexpected happend
+            else{
+                unlink(private_fifo_path);
+                decrease_thread_counter();
+                perror("Failed to open private fifo");
+                return NULL;
+            }
         }
-        //error caused by alarm
-        if(!running){
-            unlink(private_fifo_path);
-            decrease_thread_counter();
-            printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP");
-            return NULL;
-        }
-        //Somthing unexpected happend
-        else{
-            unlink(private_fifo_path);
-            decrease_thread_counter();
-            perror("Failed to open private fifo");
-            return NULL;
-        }
-
+        break;
     }
 
-    read(private_fifo, &response, sizeof(response));
 
+    Message response;
+    while(1){
+        if (read(private_fifo, &response, sizeof(response)) < 1){
+            if(!running){
+                decrease_thread_counter();
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP2");
+                return NULL;
+            }
+        }
+        break;
+    }
     //Received message
     printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, response.tskres, "GOTRS");
     
@@ -173,7 +185,7 @@ int main(int argc, char** argv){
     if (argc > NUMBER_OF_INPUTS){
         printf("Too many inputs\n");
         print_usage();
-        exit(1);
+            exit(1);
     } if(argc < NUMBER_OF_INPUTS){
         printf("Too few inputs\n");
         print_usage();
@@ -187,6 +199,7 @@ int main(int argc, char** argv){
                 } else {
                     printf("Invalid flag\n");
                     print_usage();
+                    exit(1);
                 }
             } else {
                 fifopath = argv[i];
@@ -220,8 +233,9 @@ int main(int argc, char** argv){
     pthread_t thread_id;
     int id = 0;
 
+    int i = 0;
     while(running){
-
+    i++;
         int *client_atr = (int *)malloc(sizeof(int));
         *client_atr = id; 
 
@@ -241,7 +255,7 @@ int main(int argc, char** argv){
         }
 
         id++;
-
+        if(i > 3) alarm_handler();
         //Random intervals in miliseconds
         usleep((rand()%MAX_RANDOM_NUMBER));
     }
@@ -251,12 +265,10 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    printf("Finished to spit threads\n");
-
     //Wait to all threads finish
-    while(threads_running > 0);
+    while(threads_running > 0); // printf("threads Running = %d\n", threads_running);
     pthread_mutex_destroy(&lock);
-
+    printf("\n\n\nNICE\n");
     return 0;
 }
 

@@ -1,32 +1,24 @@
+#include <ctype.h>
+#include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <pthread.h>
+
 #include <errno.h>
-
-#include "common.h"
-
-#include <semaphore.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <stdbool.h>
-
-#include <fcntl.h>
-#include <pthread.h>
+#include <time.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "common.h"
+
 #define NUMBER_OF_INPUTS 4
 #define MAX_RANDOM_NUMBER 1000
 #define BUFFER_SIZE 3000
-
-/*  TEMP   */
-#define ALARM_CHILL 0
-int alarm_stat = 0;
 
 
 bool running = true;
@@ -37,6 +29,7 @@ void alarm_handler();
 void print_usage();
 void increase_thread_counter();
 void decrease_thread_counter();
+
 //Public Fifo
 int public_fifo;
 
@@ -51,7 +44,7 @@ Message create_message(int id, int t, int pid, pthread_t tid){
 }
 
 int open_public_fifo(char* fifo_path){
-    public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK | O_CREAT);
+    public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK);
 
     if(public_fifo == -1){
         perror("Error opening public FIFO");
@@ -103,16 +96,15 @@ void *client(void *arg){
         int ret;
         ret = write(public_fifo, &message, sizeof(message));
 
-        //Client just made a request
-        //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, -1, "IWANT");
 
         //error 
         if(ret == -1){
             if(errno == EPIPE){ // server closes public FIFO
-                if(alarm_stat == 0){
+                if(running){
                     alarm(0);
                     pthread_kill(main_thread_tid, SIGALRM);
                 }
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "CLOSD");
                 unlink(private_fifo_path);
                 decrease_thread_counter();
                 return NULL;
@@ -129,22 +121,41 @@ void *client(void *arg){
         break;
     }
 
+    //Client just made a request
+    printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "IWANT");
+
     Message response;
-    private_fifo = open (private_fifo_path, O_RDONLY);
+    while((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
+        //Too many open fd, wait and try again
+        if(errno == EMFILE || errno == ENOMEM){
+            usleep(50);
+            continue;
+        }
+        //error caused by alarm
+        if(!running){
+            unlink(private_fifo_path);
+            decrease_thread_counter();
+            printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP");
+            return NULL;
+        }
+        //Somthing unexpected happend
+        else{
+            unlink(private_fifo_path);
+            decrease_thread_counter();
+            perror("Failed to open private fifo");
+            return NULL;
+        }
+
+    }
 
     read(private_fifo, &response, sizeof(response));
-    //printf("mensagem recebida %d\n", response.tskres);
 
+    //Received message
+    printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, response.tskres, "GOTRS");
+    
     close(private_fifo);
     unlink(private_fifo_path);
-
-    //unlink(private_fifo_path);
-    //TODO: não esquecer de fazer o registro
-    //char oper[];
-    //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
-
     decrease_thread_counter();
-
     return NULL;
 }
 
@@ -214,7 +225,12 @@ int main(int argc, char** argv){
         int *client_atr = (int *)malloc(sizeof(int));
         *client_atr = id; 
 
-        if(pthread_create(&thread_id, NULL, client, client_atr)){
+        while(pthread_create(&thread_id, NULL, client, client_atr)){
+            //Too many threads, wait and try again
+            if(errno == EAGAIN){
+                usleep(50);
+                continue;
+            }
             perror("Failed to create thread");
             break;
         }
@@ -236,12 +252,10 @@ int main(int argc, char** argv){
     }
 
     printf("Finished to spit threads\n");
-    //Wait to all threads finish
-    while(threads_running > 0) printf("threads == %d\n", threads_running);
-    pthread_mutex_destroy(&lock);
-    printf("All threads Terminated\n");
 
-    //TODO: Fazer registros
+    //Wait to all threads finish
+    while(threads_running > 0);
+    pthread_mutex_destroy(&lock);
 
     return 0;
 }

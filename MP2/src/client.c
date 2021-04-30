@@ -18,8 +18,8 @@
 #include "common.h"
 
 #define NUMBER_OF_INPUTS 4
-#define MAX_RANDOM_NUMBER 1000
-#define BUFFER_SIZE 30000
+#define MAX_RANDOM_NUMBER 50000
+#define BUFFER_SIZE 3000
 
 
 bool running = true;
@@ -47,14 +47,15 @@ Message create_message(int id, int t, int pid, pthread_t tid){
 }
 
 int open_public_fifo(char* fifo_path){
-    public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK);
+    while(1){
+        public_fifo = open(fifo_path, O_WRONLY | O_NONBLOCK);
+        if(!running)
+            break;
 
-    if(public_fifo == -1){
-        perror("Error opening public FIFO");
-        return 1;
+        if(public_fifo != -1)
+            return 0;
     }
-
-    return 0;
+    return 1;
 }
 
 int create_private_fifo(pid_t pid, pthread_t tid){
@@ -93,16 +94,15 @@ void *client(void *arg){
     //Create message
     Message message = create_message(id, t, pid, tid);
     int private_fifo = 0;
-
     //Sends a request in the public fifo
     while(1){
         int ret;
         ret = write(public_fifo, &message, sizeof(message));
 
-
-        //error 
+        //error
         if(ret == -1){
-            if(errno == EPIPE){ // server closes public FIFO
+            perror("Failed");
+            if(errno == EPIPE || errno == EBADF){ // server closes public FIFO
                 if(running){
                     alarm(0);
                     pthread_kill(main_thread_tid, SIGALRM);
@@ -173,7 +173,10 @@ void *client(void *arg){
         break;
     }
     //Received message
-    printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, response.tskres, "GOTRS");
+    if(response.tskres == -1)
+         printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "CLOSD");
+    else
+        printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, response.tskres, "GOTRS");
     
     close(private_fifo);
     unlink(private_fifo_path);
@@ -257,8 +260,10 @@ int main(int argc, char** argv){
         }
 
         id++;
+
+
         //Random intervals in miliseconds
-        usleep((rand()%MAX_RANDOM_NUMBER));
+        usleep(rand()%MAX_RANDOM_NUMBER + 10000);
     }
 
     if (close(public_fifo) == -1){

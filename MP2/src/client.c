@@ -1,43 +1,4 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-#include <pthread.h>
-
-#include <dirent.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <time.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "common.h"
-
-#define NUMBER_OF_INPUTS 4
-#define MAX_RANDOM_NUMBER 50000
-#define BUFFER_SIZE 3000
-
-
-bool running = true;
-pthread_mutex_t lock;
-int threads_running = 0;
-
-void alarm_handler();
-void print_usage();
-void increase_thread_counter();
-void decrease_thread_counter();
-void invalidate(char *path);
-pthread_t threads[BUFFER_SIZE];
-
-//Public Fifo
-int public_fifo;
-
-//Main thread tid
-pthread_t main_thread_tid;
+#include "client.h"
 
 Message create_message(int id, int t, int pid, pthread_t tid){
     int res = -1;
@@ -69,7 +30,6 @@ int create_private_fifo(pid_t pid, pthread_t tid){
     return 0;
 }
 
-
 void *client(void *arg){
     int id = *(int *) arg;
     free(arg);
@@ -86,7 +46,6 @@ void *client(void *arg){
 
     if(mkfifo(private_fifo_path, 0660)){
         perror("error log private");
-        printf("Error creating private FIFO\n");
         decrease_thread_counter();
         return NULL;
     }
@@ -101,7 +60,6 @@ void *client(void *arg){
 
         //error
         if(ret == -1){
-            perror("Failed");
             if(errno == EPIPE || errno == EBADF){ // server closes public FIFO
                 if(running){
                     alarm(0);
@@ -129,7 +87,6 @@ void *client(void *arg){
 
     Message response;
     while((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
-        printf("cool\n");
         //Too many open fd, wait and try again
         if(errno == EMFILE || errno == ENOMEM){
             usleep(50);
@@ -172,6 +129,7 @@ void *client(void *arg){
         }
         break;
     }
+
     //Received message
     if(response.tskres == -1)
          printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "CLOSD");
@@ -199,7 +157,7 @@ int main(int argc, char** argv){
         printf("Too many inputs\n");
         print_usage();
         exit(1);
-    } if(argc < NUMBER_OF_INPUTS){
+    } else if(argc < NUMBER_OF_INPUTS){
         printf("Too few inputs\n");
         print_usage();
         exit(1);
@@ -297,7 +255,6 @@ void decrease_thread_counter(){
 }
 
 void alarm_handler(){
-    printf("timeisup\n");
     running = false;
 }
 

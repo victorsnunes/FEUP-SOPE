@@ -27,14 +27,16 @@
 /*  TEMP   */
 #define ALARM_CHILL 0
 int alarm_stat = 0;
-void open_private_fifo() {};
 
 
 bool running = true;
+pthread_mutex_t lock;
+int threads_running = 0;
 
 void alarm_handler();
 void print_usage();
-
+void increase_thread_counter();
+void decrease_thread_counter();
 //Public Fifo
 int public_fifo;
 
@@ -79,6 +81,8 @@ void *client(void *arg){
     pthread_t tid = pthread_self();
     int t = rand()%8 + 1;
 
+    increase_thread_counter();
+
     //Create private fifo
     char private_fifo_path[BUFFER_SIZE];
     sprintf(private_fifo_path, "/tmp/%d.%ld", pid, tid);
@@ -86,17 +90,9 @@ void *client(void *arg){
     if(mkfifo(private_fifo_path, 0660)){
         perror("error log private");
         printf("Error creating private FIFO\n");
+        decrease_thread_counter();
         return NULL;
     }
-  
- 
-    // //TODO: Criar função
-    // int private_fifo;
-    // if((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
-    //     printf("error opening private fifo\n");
-    //     unlink(private_fifo_path);
-    //     return NULL;
-    // }
 
     //Create message
     Message message = create_message(id, t, pid, tid);
@@ -108,7 +104,7 @@ void *client(void *arg){
         ret = write(public_fifo, &message, sizeof(message));
 
         //Client just made a request
-        printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, -1, "IWANT");
+        //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, -1, "IWANT");
 
         //error 
         if(ret == -1){
@@ -117,14 +113,15 @@ void *client(void *arg){
                     alarm(0);
                     pthread_kill(main_thread_tid, SIGALRM);
                 }
-                //TODO: Deve esperar resposta...
                 unlink(private_fifo_path);
+                decrease_thread_counter();
                 return NULL;
             } else if(errno == EAGAIN){ // FULL public FIFO, try again
                 usleep(50);
                 continue;
             } else { // error sending request
                 unlink(private_fifo_path);
+                decrease_thread_counter();
                 return NULL;
             }
         }
@@ -136,18 +133,17 @@ void *client(void *arg){
     private_fifo = open (private_fifo_path, O_RDONLY);
 
     read(private_fifo, &response, sizeof(response));
-    printf("mensagem recebida %d\n", response.tskres);
+    //printf("mensagem recebida %d\n", response.tskres);
 
-    //TODO: Esperar em bloqueamento pela resposta
-    //int ret2 = read(private_fifo, &message2, sizeof(message2));
-   // printf("message recieved: %d", message2.res);
+    close(private_fifo);
+    unlink(private_fifo_path);
 
-
-    //TODO: Fechar fifos, acabou o tempo estipulado pelo utilizador
-
+    //unlink(private_fifo_path);
     //TODO: não esquecer de fazer o registro
     //char oper[];
     //printf("%d ; %d ; %d ; %d ; %d ; %d ; %s", time(), id, t, pid, tid, ret, oper);
+
+    decrease_thread_counter();
 
     return NULL;
 }
@@ -204,6 +200,12 @@ int main(int argc, char** argv){
     }
     alarm(nseconds);
 
+    //Setup Mutex
+    if(pthread_mutex_init(&lock, NULL) != 0){
+        perror("Failed to init Mutex");
+        exit(1);
+    }
+
     pthread_t thread_id;
     int id = 0;
 
@@ -224,7 +226,6 @@ int main(int argc, char** argv){
 
         id++;
 
-        running = false;
         //Random intervals in miliseconds
         usleep((rand()%MAX_RANDOM_NUMBER));
     }
@@ -234,9 +235,27 @@ int main(int argc, char** argv){
         exit(1);
     }
 
+    printf("Finished to spit threads\n");
+    //Wait to all threads finish
+    while(threads_running > 0) printf("threads == %d\n", threads_running);
+    pthread_mutex_destroy(&lock);
+    printf("All threads Terminated\n");
+
     //TODO: Fazer registros
 
     return 0;
+}
+
+void increase_thread_counter(){
+    pthread_mutex_lock(&lock);
+    threads_running++;
+    pthread_mutex_unlock(&lock);
+}
+
+void decrease_thread_counter(){
+    pthread_mutex_lock(&lock);
+    threads_running--;
+    pthread_mutex_unlock(&lock);
 }
 
 void alarm_handler(){

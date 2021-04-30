@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,7 +19,7 @@
 
 #define NUMBER_OF_INPUTS 4
 #define MAX_RANDOM_NUMBER 1000
-#define BUFFER_SIZE 3000
+#define BUFFER_SIZE 30000
 
 
 bool running = true;
@@ -29,6 +30,8 @@ void alarm_handler();
 void print_usage();
 void increase_thread_counter();
 void decrease_thread_counter();
+void invalidate(char *path);
+pthread_t threads[BUFFER_SIZE];
 
 //Public Fifo
 int public_fifo;
@@ -126,6 +129,7 @@ void *client(void *arg){
 
     Message response;
     while((private_fifo = open(private_fifo_path, O_RDONLY)) == -1){
+        printf("cool\n");
         //Too many open fd, wait and try again
         if(errno == EMFILE || errno == ENOMEM){
             usleep(50);
@@ -138,7 +142,7 @@ void *client(void *arg){
             printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP");
             return NULL;
         }
-        //Somthing unexpected happend
+        //Something unexpected happend
         else{
             unlink(private_fifo_path);
             decrease_thread_counter();
@@ -148,8 +152,26 @@ void *client(void *arg){
 
     }
 
-    read(private_fifo, &response, sizeof(response));
-
+    while(1){
+        int ret = read(private_fifo, &response, sizeof(response));
+        if(ret == -1 || ret == 0){
+            //error caused by alarm
+            if(!running){
+                unlink(private_fifo_path);
+                decrease_thread_counter();
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, -1, "GAVUP");
+                return NULL;
+            }
+            //Something unexpected happend
+            else{
+                unlink(private_fifo_path);
+                decrease_thread_counter();
+                perror("Failed to open private fifo");
+                return NULL;
+            }
+        }
+        break;
+    }
     //Received message
     printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), id, t, pid, tid, response.tskres, "GOTRS");
     
@@ -217,7 +239,6 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    pthread_t thread_id;
     int id = 0;
 
     while(running){
@@ -225,7 +246,7 @@ int main(int argc, char** argv){
         int *client_atr = (int *)malloc(sizeof(int));
         *client_atr = id; 
 
-        while(pthread_create(&thread_id, NULL, client, client_atr)){
+        while(pthread_create(&threads[id], NULL, client, client_atr)){
             //Too many threads, wait and try again
             if(errno == EAGAIN){
                 usleep(50);
@@ -234,14 +255,8 @@ int main(int argc, char** argv){
             perror("Failed to create thread");
             break;
         }
-    
-        if(pthread_detach(thread_id)){
-            perror("Failed to detach thread");
-            break;
-        }
 
         id++;
-
         //Random intervals in miliseconds
         usleep((rand()%MAX_RANDOM_NUMBER));
     }
@@ -251,7 +266,11 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    printf("Finished to spit threads\n");
+    for(int i = 0; i < id; i++){
+        char path[BUFFER_SIZE];
+        sprintf(path, "/tmp/%d.%ld", getpid(), threads[i]);
+        invalidate(path);
+    }
 
     //Wait to all threads finish
     while(threads_running > 0);
@@ -273,7 +292,14 @@ void decrease_thread_counter(){
 }
 
 void alarm_handler(){
+    printf("timeisup\n");
     running = false;
+}
+
+void invalidate(char *path) {
+    int fd = open(path, O_WRONLY | O_NONBLOCK);
+    unlink(path);
+    close(fd);
 }
 
 void print_usage(){

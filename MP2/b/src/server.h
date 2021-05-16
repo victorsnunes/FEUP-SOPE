@@ -29,6 +29,7 @@ pthread_t main_thread_tid;
 pthread_mutex_t lock;
 bool timeout = false;
 int threads_running = 0;
+char *public_fifopath;
 
 void print_usage();
 void *consumer();

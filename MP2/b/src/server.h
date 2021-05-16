@@ -23,6 +23,7 @@
 
 #define NUMBER_OF_INPUTS 6
 #define BUFFER_SIZE 128
+#define NUMBER_OF_TRIES 5
 
 pthread_t main_thread_tid;
 pthread_mutex_t lock;
@@ -34,6 +35,7 @@ void *consumer();
 void *producer(void *arg);
 void alarm_handler();
 bool send_to_buffer(Message *msg);
+Message *extract_from_buffer();
 void increase_thread_counter();
 void decrease_thread_counter();
 

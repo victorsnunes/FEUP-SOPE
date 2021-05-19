@@ -156,8 +156,8 @@ void *consumer(){
         return NULL;
     }
 
-    //Loop while there is time and while the buffer is not empty
-    while(true){
+    //Loop while there is time and while the buffer is not empty and there still producer threads running
+    while(!timeout || !buffer_is_empty() || threads_running > 1){
         if(!buffer_is_empty()){
             Message *response = extract_from_buffer();
             char private_fifopath[BUFFER_SIZE];
@@ -169,13 +169,13 @@ void *consumer(){
             while(private_fifo == -1){
                 //Too many open files, wait and try again
                 if(errno == EMFILE || errno == ENOMEM){
-                    usleep(50);
                     tries++;
                     if(tries == NUMBER_OF_TRIES){
                         printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), response->rid, response->tskload, response->pid, response->tid, response->tskres, "FAILD");
                         fprintf(stderr, "[server] Failed to open private fifo, too many tries giving up\n");
                         goto next;
                     }
+                    usleep(50);
                     continue;
                 }
                 if(errno == ENOENT){
@@ -197,13 +197,14 @@ void *consumer(){
                 goto next;
             }
 
-            printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), response->rid, response->tskload, response->pid, response->tid, response->tskres, "TSKDN");
+            if(response->tskres == -1)
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), response->rid, response->tskload, response->pid, response->tid, response->tskres, "2LATE");
+            else
+                printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), response->rid, response->tskload, response->pid, response->tid, response->tskres, "TSKDN");
 
         next:
             free(response);
         }
-        if(timeout && buffer_is_empty())
-            break;
         //buffer is clear, wait and try again
         usleep(50);
     }
@@ -221,9 +222,9 @@ void *producer(void *arg){
 
     printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), request->rid, request->tskload, request->pid, request->tid, request->tskres, "TSKEX");
 
-    while(!send_to_buffer(request)){
+   while(!send_to_buffer(request)){
         //Buffer full wait and try again
-        usleep(50);
+        usleep(20);
     }
 
     decrease_thread_counter();
@@ -236,7 +237,7 @@ void alarm_handler(){
 }
 
 void sigpipe_handler(){
-    printf("Handler called\n");
+    printf("SIGPIPE\n");
     return;
 }
 

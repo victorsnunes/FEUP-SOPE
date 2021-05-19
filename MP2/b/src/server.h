@@ -26,7 +26,8 @@
 #define NUMBER_OF_TRIES 5
 
 pthread_t main_thread_tid;
-pthread_mutex_t lock;
+pthread_mutex_t bufferLock;
+pthread_mutex_t counterLock;
 bool timeout = false;
 int threads_running = 0;
 char *public_fifopath;
@@ -35,6 +36,7 @@ void print_usage();
 void *consumer();
 void *producer(void *arg);
 void alarm_handler();
+void sigpipe_handler();
 bool send_to_buffer(Message *msg);
 Message *extract_from_buffer();
 void increase_thread_counter();

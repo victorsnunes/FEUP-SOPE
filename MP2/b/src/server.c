@@ -114,6 +114,7 @@ int main(int argc, char **argv){
 
         }
 
+        //There is no more time, sending the request direct to the consumer
         if(timeout){
             printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), request->rid, request->tskload, request->pid, request->tid, request->tskres, "2LATE");
             send_to_buffer(request);
@@ -245,7 +246,6 @@ void alarm_handler(){
 }
 
 void sigpipe_handler(){
-    printf("SIGPIPE\n");
     return;
 }
 

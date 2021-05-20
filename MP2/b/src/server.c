@@ -111,19 +111,24 @@ int main(int argc, char **argv){
 
         }
 
-        printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), request->rid, request->tskload, request->pid, request->tid, request->tskres, "RECVD");
-
-        while(pthread_create(&producer_tid, NULL, producer, request)){
-            //Too many threads, wait and try again
-            if(errno == EAGAIN){
-                usleep(50);
-                continue;
-            }
-            perror("[server] Failed to create producer thread");
-            free(request);
-            break;
+        if(timeout){
+            printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), request->rid, request->tskload, request->pid, request->tid, request->tskres, "2LATE");
+            send_to_buffer(request);
         }
+        else{
+            printf("%ld ; %d ; %d ; %d ; %lu ; %d ; %s\n", time(NULL), request->rid, request->tskload, request->pid, request->tid, request->tskres, "RECVD");
 
+            while(pthread_create(&producer_tid, NULL, producer, request)){
+                //Too many threads, wait and try again
+                if(errno == EAGAIN){
+                    usleep(50);
+                    continue;
+                }
+                perror("[server] Failed to create producer thread");
+                free(request);
+                break;
+            }
+        }
 
     }
 

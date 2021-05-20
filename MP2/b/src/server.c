@@ -10,6 +10,9 @@ int main(int argc, char **argv){
     struct sigaction sigalarm;
     sigset_t smask;
 
+    //Turn of the stdout buffer
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     //Parse the command line
     if (argc > NUMBER_OF_INPUTS){
         printf("Too many inputs %d\n", argc);

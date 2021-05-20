@@ -35,6 +35,8 @@
     Utilizacao de 2 mutex 
         - Um para as operacoes relacionadas com o buffer (armazem)
         - Um para o lancamento de threads 
+## Buffer
+    Foi implementado uma queue de tamanho variável para funcionar como buffer
 ## Logs
   RECVD - o thread principal recebeu o pedido
   TSKEX - um thread produtor informa que ja tem o resultado da tarefa
